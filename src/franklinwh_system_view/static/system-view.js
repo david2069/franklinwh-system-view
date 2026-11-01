@@ -24,7 +24,9 @@
   const POLL_MS = 5000;
   const KEY_START = "fwh-system-view:start";
 
-  let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard" };
+  // below: a CSS selector for the host's top bar; the overlay starts under it, so the
+  // host's own bar (and anything it stacks above its page) stays visible and usable.
+  let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null };
   let root, svg, panel, tip, chips, startBox, lastFocus, timer, data = null, gwIdx = 0, sel = null;
   let zoom = 1, panX = 0, panY = 0, scn = null;
 
@@ -72,7 +74,13 @@
     });
     root.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
     wirePointer();
-    window.addEventListener("resize", () => { if (!root.hidden) draw(); });
+    window.addEventListener("resize", () => { if (!root.hidden) { placeBelow(); draw(); } });
+  }
+
+  function placeBelow() {
+    const el = opts.below && document.querySelector(opts.below);
+    const b = el ? Math.max(0, Math.round(el.getBoundingClientRect().bottom)) : 0;
+    root.style.top = b + "px";
   }
 
   /* ── zoom and pan: the viewBox shrinks around the centre; drag or pinch to move ── */
@@ -208,6 +216,7 @@
     if (!root.hidden) return;
     lastFocus = document.activeElement;
     root.hidden = false;
+    placeBelow();
     document.documentElement.classList.add("fwhsv-open");
     if (push !== false && location.hash !== "#system") history.pushState({ fwhsv: 1 }, "", "#system");
     load(); poll();

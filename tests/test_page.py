@@ -136,3 +136,15 @@ def test_a_host_dialog_stays_above_the_overlay(browser, base):
     top = page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight / 2).id")
     assert top == "hostmodal"
     ctx.close()
+
+
+def test_the_overlay_starts_below_the_hosts_top_bar(browser, base):
+    ctx, page, _ = _page(browser, base)
+    page.evaluate("""() => { const h = document.querySelector('header');
+      h.style.cssText += ';position:fixed;top:0;left:0;right:0;height:56px;z-index:50;background:#333'; }""")
+    page.evaluate("FWHSystemView.close(); FWHSystemView.mount({endpoint: '/api/system', below: 'header'})")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.evaluate("document.querySelector('.fwhsv').getBoundingClientRect().top") == 56
+    assert page.evaluate("document.elementFromPoint(innerWidth - 20, 80).closest('.fwhsv') !== null")
+    ctx.close()
