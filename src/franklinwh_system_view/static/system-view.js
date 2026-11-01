@@ -82,7 +82,7 @@
     const b = el ? Math.max(0, Math.round(el.getBoundingClientRect().bottom)) : 0;
     root.style.top = b + "px";
     const f = opts.above && document.querySelector(opts.above);
-    const fr = f && f.offsetParent !== null ? f.getBoundingClientRect() : null;
+    const fr = f ? f.getBoundingClientRect() : null;      // display:none gives height 0
     root.style.bottom = (fr && fr.height ? Math.max(0, Math.round(window.innerHeight - fr.top)) : 0) + "px";
   }
 
