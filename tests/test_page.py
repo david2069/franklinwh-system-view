@@ -112,3 +112,27 @@ def test_an_outage_draws_the_grid_red(browser, base):
     page.wait_for_selector(".fwhsv-obj[data-id='grid']")
     assert "s-crit" in page.get_attribute(".fwhsv-obj[data-id='grid']", "class")
     ctx.close()
+
+
+@pytest.mark.parametrize("theme,dark", [("dark", True), ("light", False)])
+def test_the_overlay_follows_the_host_pages_theme(browser, base, theme, dark):
+    ctx, page, _ = _page(browser, base)
+    page.evaluate(f"document.documentElement.dataset.theme = {theme!r}")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    bg = page.evaluate("getComputedStyle(document.querySelector('.fwhsv')).backgroundColor")
+    r, g, b = [int(x) for x in bg[bg.index("(") + 1:bg.index(")")].split(",")[:3]]
+    assert (r + g + b < 200) == dark, bg
+    ctx.close()
+
+
+def test_a_host_dialog_stays_above_the_overlay(browser, base):
+    ctx, page, _ = _page(browser, base)
+    page.evaluate("""() => { const d = document.createElement('div'); d.id = 'hostmodal';
+      d.style.cssText = 'position:fixed;inset:30% 30%;z-index:50;background:#fff';
+      document.body.appendChild(d); }""")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    top = page.evaluate("document.elementFromPoint(innerWidth / 2, innerHeight / 2).id")
+    assert top == "hostmodal"
+    ctx.close()

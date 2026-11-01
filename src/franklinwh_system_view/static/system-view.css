@@ -1,17 +1,23 @@
-/* FranklinWH System view overlay. Colours use the host bridge's tokens when it has them
-   (--text-primary etc.), with fallbacks, so the overlay matches either bridge's theme. */
+/* FranklinWH System view overlay. Its own palette, dark or light following the host page. */
 .fwhsv{
-  --sv-bg: var(--bg-primary, #121924); --sv-panel: var(--bg-card, #1a2331); --sv-tile: #152018;
-  --sv-ink: var(--text-primary, #e4e9f0); --sv-muted: var(--text-secondary, #97a3b4); --sv-line: #3a4658;
+  --sv-bg: #121924; --sv-panel: #1a2331; --sv-tile: #152018;
+  --sv-ink: #e4e9f0; --sv-muted: #97a3b4; --sv-line: #3a4658;
   --sv-ok: #4fd286; --sv-warn: #f0a83a; --sv-crit: #f07067; --sv-off: #7d889a;
-  position: fixed; inset: 0; z-index: 900; display: flex; flex-direction: column;
-  background: var(--sv-bg); color: var(--sv-ink);
+  /* Above the host's page chrome, below its dialogs, so a host modal (a disclaimer, a
+     confirmation) still shows. Hosts can override with --fwhsv-z. */
+  position: fixed; inset: 0; z-index: var(--fwhsv-z, 45); display: flex; flex-direction: column;
+  background: var(--sv-bg); color: var(--sv-ink); color-scheme: dark;
   font-family: inherit; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
 }
-@media (prefers-color-scheme: light){ .fwhsv:not([data-theme="dark"]){
-  --sv-bg: var(--bg-primary, #f3f5f7); --sv-panel: var(--bg-card, #ffffff); --sv-tile: #e8f3ec;
-  --sv-ink: var(--text-primary, #18202b); --sv-muted: var(--text-secondary, #5b6676); --sv-line: #cfd6df;
-  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; } }
+/* The host's theme wins: data-theme on <html>; with none set, the system preference. */
+html[data-theme="light"] .fwhsv{
+  --sv-bg: #f3f5f7; --sv-panel: #ffffff; --sv-tile: #e8f3ec;
+  --sv-ink: #18202b; --sv-muted: #5b6676; --sv-line: #cfd6df;
+  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; color-scheme: light; }
+@media (prefers-color-scheme: light){ html:not([data-theme]) .fwhsv{
+  --sv-bg: #f3f5f7; --sv-panel: #ffffff; --sv-tile: #e8f3ec;
+  --sv-ink: #18202b; --sv-muted: #5b6676; --sv-line: #cfd6df;
+  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; color-scheme: light; } }
 .fwhsv[hidden]{ display: none !important; }
 html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 .fwhsv-bar{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; border-bottom: 1px solid var(--sv-line); }
@@ -40,7 +46,7 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
   .fwhsv-panel{ width: auto; border-left: 0; border-top: 1px solid var(--sv-line); max-height: 45%; }
   .fwhsv-start{ order: 9; }
 }
-.fwhsv-tip{ position: fixed; z-index: 901; pointer-events: none; max-width: 240px; background: var(--sv-ink); color: var(--sv-bg); font-size: .82rem; line-height: 1.4; padding: 7px 10px; border-radius: 8px; }
+.fwhsv-tip{ position: fixed; z-index: calc(var(--fwhsv-z, 45) + 1); pointer-events: none; max-width: 240px; background: var(--sv-ink); color: var(--sv-bg); font-size: .82rem; line-height: 1.4; padding: 7px 10px; border-radius: 8px; }
 /* drawing */
 .fwhsv-obj{ cursor: pointer; }
 .fwhsv-hit{ fill: transparent; }
