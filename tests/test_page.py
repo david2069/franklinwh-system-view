@@ -148,3 +148,15 @@ def test_the_overlay_starts_below_the_hosts_top_bar(browser, base):
     assert page.evaluate("document.querySelector('.fwhsv').getBoundingClientRect().top") == 56
     assert page.evaluate("document.elementFromPoint(innerWidth - 20, 80).closest('.fwhsv') !== null")
     ctx.close()
+
+
+def test_the_overlay_ends_above_the_hosts_bottom_bar(browser, base):
+    ctx, page, _ = _page(browser, base, width=390, height=844)
+    page.evaluate("""() => { const n = document.createElement('nav'); n.id = 'tabs';
+      n.style.cssText = 'position:fixed;bottom:0;left:0;right:0;height:60px;z-index:70;background:#333';
+      document.body.appendChild(n); }""")
+    page.evaluate("FWHSystemView.close(); FWHSystemView.mount({endpoint: '/api/system', above: '#tabs'})")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.evaluate("document.querySelector('.fwhsv').getBoundingClientRect().bottom") == 844 - 60
+    ctx.close()

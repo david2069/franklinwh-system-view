@@ -24,9 +24,9 @@
   const POLL_MS = 5000;
   const KEY_START = "fwh-system-view:start";
 
-  // below: a CSS selector for the host's top bar; the overlay starts under it, so the
-  // host's own bar (and anything it stacks above its page) stays visible and usable.
-  let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null };
+  // below / above: CSS selectors for the host's top bar and bottom bar (e.g. a phone tab
+  // bar). The overlay fits between them, so the host's bars stay visible and usable.
+  let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null, above: null };
   let root, svg, panel, tip, chips, startBox, lastFocus, timer, data = null, gwIdx = 0, sel = null;
   let zoom = 1, panX = 0, panY = 0, scn = null;
 
@@ -81,6 +81,9 @@
     const el = opts.below && document.querySelector(opts.below);
     const b = el ? Math.max(0, Math.round(el.getBoundingClientRect().bottom)) : 0;
     root.style.top = b + "px";
+    const f = opts.above && document.querySelector(opts.above);
+    const fr = f && f.offsetParent !== null ? f.getBoundingClientRect() : null;
+    root.style.bottom = (fr && fr.height ? Math.max(0, Math.round(window.innerHeight - fr.top)) : 0) + "px";
   }
 
   /* ── zoom and pan: the viewBox shrinks around the centre; drag or pinch to move ── */
