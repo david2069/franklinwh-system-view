@@ -138,6 +138,7 @@ def _batteries(g: dict) -> list[dict]:
     units = bat.get("units") or []
 
     def card(id_, name, soc, p, state="ok"):
+        soc = None if soc is None else round(soc)      # the ring, the sentence and the table agree
         word = "Discharging" if p and p >= FLOW_W else "Charging" if p and p <= -FLOW_W else "Idle"
         status = {"warn": "Warning", "crit": "Fault", "off": "Offline"}.get(state, word)
         hover = f"{name} is {soc:g} % full" if soc is not None else name
