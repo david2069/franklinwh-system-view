@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "franklinwh-system-view"
-version = "0.2.2"
+version = "0.2.3"
 description = "A friendly picture of a FranklinWH site (grid, aGate, batteries, solar, home, circuits) shared by the FranklinWH bridges: payload schema, layout and the overlay page"
 readme = "README.md"
 requires-python = ">=3.11"

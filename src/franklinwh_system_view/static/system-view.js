@@ -215,8 +215,10 @@
       const pick = () => { sel = n.id; showPanel(n); draw(); };
       el.addEventListener("click", pick);
       el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
-      el.addEventListener("pointerenter", (e) => showTip(n, e.clientX, e.clientY));
-      el.addEventListener("pointermove", (e) => showTip(n, e.clientX, e.clientY));
+      // No hover tip for a touch: the tap opens the details, which say the same, and a
+      // tip left behind by a tap covered the details' ✕ (iOS sends no pointerleave).
+      el.addEventListener("pointerenter", (e) => { if (e.pointerType !== "touch") showTip(n, e.clientX, e.clientY); });
+      el.addEventListener("pointermove", (e) => { if (e.pointerType !== "touch") showTip(n, e.clientX, e.clientY); });
       el.addEventListener("pointerleave", () => { tip.hidden = true; });
       el.addEventListener("focus", () => { const r = el.getBoundingClientRect(); showTip(n, r.left + r.width / 2, r.bottom); });
       el.addEventListener("blur", () => { tip.hidden = true; });
@@ -233,6 +235,7 @@
     tip.style.top = (y - h - 14 >= 8 ? y - h - 14 : y + 18) + "px";
   }
   function showPanel(n) {
+    tip.hidden = true;
     panel.hidden = false;
     panel.innerHTML = `<button type="button" class="fwhsv-pclose" aria-label="Close details">✕</button>` +
       `<h3>${esc(n.label)}</h3><p>${esc(n.hover)}</p>` +

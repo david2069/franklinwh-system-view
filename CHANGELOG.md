@@ -1,6 +1,13 @@
 # Changelog
 
-## [0.2.2] — unreleased
+## [0.2.3] — unreleased
+
+### Fixed
+- On a phone, a tap left the object's hover box on screen, covering the details panel's ✕
+  ("Can't dismiss this view", iPhone Safari). A touch no longer shows the hover box, and
+  opening the details hides it. Reported by the Modbus Bridge session.
+
+## [0.2.2] — 2026-11-01
 
 ### Added
 - `mount({gateway, onGateway})` and `FWHSystemView.showGateway(id)`, so a host's gateway
