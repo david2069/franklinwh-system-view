@@ -1,6 +1,15 @@
 # Changelog
 
-## [0.2.1] — unreleased
+## [0.2.2] — unreleased
+
+### Added
+- `mount({gateway, onGateway})` and `FWHSystemView.showGateway(id)`, so a host's gateway
+  picker and the overlay's gateway chips show the same gateway. Without them the overlay
+  could show one gateway while the host's picker said another. Reported by the Modbus
+  Bridge.
+- A two-gateway example payload (`two_gateways`).
+
+## [0.2.1] — 2026-11-01
 
 ### Fixed
 - An object in `unavailable` is drawn grey, "Not available here", as the design says. It

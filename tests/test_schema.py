@@ -4,7 +4,7 @@ import pytest
 from franklinwh_system_view import build, fixture, static_dir, validate
 
 FIXTURES = ["us_backup_no_solar", "us_tou_two_apowers_solar", "us_outage", "offline",
-            "six_apowers", "au_single_phase"]
+            "six_apowers", "au_single_phase", "two_gateways"]
 
 
 @pytest.mark.parametrize("name", FIXTURES)

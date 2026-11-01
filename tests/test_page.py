@@ -232,3 +232,20 @@ def test_a_saved_answer_that_disagrees_with_a_reading_is_flagged_at_once(browser
     page.wait_for_selector(".fwhsv-result.ok")
     assert "the aGate reads 2" in page.locator(".fwhsv-mismatch").inner_text()
     ctx.close()
+
+
+def test_the_shown_gateway_follows_the_hosts_picker_and_reports_back(browser, base):
+    ctx, page, errors = _page(browser, base, "?fixture=two_gateways")
+    page.evaluate("""() => { window.picked = []; FWHSystemView.mount({endpoint: '/api/system?fixture=two_gateways',
+      gateway: () => 'gw2', onGateway: (id) => window.picked.push(id)}); }""")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-chips [aria-selected='true']")
+    assert page.locator(".fwhsv-chips [aria-selected='true']").inner_text() == "Garage"     # opens on the host's
+    page.evaluate("FWHSystemView.showGateway('gw1')")                                        # the host's picker moved
+    assert page.locator(".fwhsv-chips [aria-selected='true']").inner_text() == "House"
+    page.evaluate("FWHSystemView.showGateway('nope')")                                       # unknown: stays put
+    assert page.locator(".fwhsv-chips [aria-selected='true']").inner_text() == "House"
+    page.click(".fwhsv-chips [role=tab] >> text=Garage")
+    assert page.evaluate("window.picked") == ["gw2"]                                         # the host is told
+    assert errors == []
+    ctx.close()

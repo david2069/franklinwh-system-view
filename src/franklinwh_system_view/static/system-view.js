@@ -2,7 +2,9 @@
  *
  * The bridge serves this file and system-view.css at /system-view/, includes both, and
  * calls FWHSystemView.mount({endpoint: "/api/system"}). Nothing else in the bridge's UI
- * changes. The layout arrives precomputed (franklinwh_system_view.layout); this file only
+ * changes. A host with its own gateway picker passes gateway (the id, or a function giving
+ * it, read on open) and onGateway(id), called when the user picks a gateway here, and calls
+ * FWHSystemView.showGateway(id) when its picker changes. The layout arrives precomputed (franklinwh_system_view.layout); this file only
  * draws it, and handles zoom, hover, the detail panel and opening/closing.
  */
 (function () {
@@ -42,8 +44,11 @@
 
   // below / above: CSS selectors for the host's top bar and bottom bar (e.g. a phone tab
   // bar). The overlay fits between them, so the host's bars stay visible and usable.
-  let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null, above: null };
+  // gateway / onGateway: keep the shown gateway and the host's gateway picker the same.
+  let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null, above: null,
+               gateway: null, onGateway: null };
   let root, svg, panel, tip, chips, startBox, siteEl, custBtn, dlg, lastFocus, timer, data = null, gwIdx = 0, sel = null;
+  let want = null;   // a gateway id to show once it is in the data
   let zoom = 1, panX = 0, panY = 0, scn = null;
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -180,11 +185,19 @@
     if (!data) return;
     const empty = root.querySelector(".fwhsv-empty");
     const gws = data.gateways || [];
+    if (want != null) {
+      const i = gws.findIndex((g) => g.id === want);
+      if (i >= 0 && i !== gwIdx) { gwIdx = i; sel = null; zoom = 1; }
+      want = null;
+    }
     drawStrip();
     custBtn.hidden = !data.customise;
     chips.innerHTML = gws.length > 1 ? gws.map((g, i) =>
       `<button type="button" role="tab" aria-selected="${i === gwIdx}" data-i="${i}" class="s-${g.online ? "ok" : "off"}">${esc(g.name)}</button>`).join("") : "";
-    chips.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { gwIdx = +b.dataset.i; sel = null; zoom = 1; draw(); }));
+    chips.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
+      gwIdx = +b.dataset.i; sel = null; zoom = 1; draw();
+      if (opts.onGateway) opts.onGateway(gws[gwIdx].id);
+    }));
     if (!gws.length) {
       svg.innerHTML = ""; empty.hidden = false;
       empty.textContent = "No gateways yet. Add one in Settings › Gateways and it will appear here.";
@@ -317,6 +330,7 @@
     if (!root) build();
     if (!root.hidden) return;
     lastFocus = document.activeElement;
+    if (opts.gateway != null) want = typeof opts.gateway === "function" ? opts.gateway() : opts.gateway;
     root.hidden = false;
     placeBelow();
     document.documentElement.classList.add("fwhsv-open");
@@ -338,5 +352,10 @@
     if (location.hash === "#system" || store.get(KEY_START) === "1") open(location.hash !== "#system");
   }
 
-  window.FWHSystemView = { mount, open: () => open(), close: () => close(), _icons: IC };
+  function showGateway(id) {
+    want = id;
+    if (data && root && !root.hidden) draw();
+  }
+
+  window.FWHSystemView = { mount, open: () => open(), close: () => close(), showGateway, _icons: IC };
 })();

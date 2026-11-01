@@ -5,7 +5,7 @@ from franklinwh_system_view import fixture, scene
 from franklinwh_system_view.layout import MAX_UNITS
 
 FIXTURES = ["us_backup_no_solar", "us_tou_two_apowers_solar", "us_outage", "offline",
-            "six_apowers", "au_single_phase"]
+            "six_apowers", "au_single_phase", "two_gateways"]
 ORIENTATIONS = ["landscape", "portrait"]
 
 
