@@ -16,6 +16,9 @@ DEVICE_STATES = ("ok", "warn", "crit", "off")
 SOLAR_WHERE = ("agate", "apbox", "apower", "ahub", "panel")
 KINDS = ("agate", "mac")
 OBJECTS = ("grid", "agate", "home", "solar", "battery", "circuits", "generator")
+LEGS = ("L1", "L2", "L3", "L1+L2", "L1+L2+L3")
+CIRCUIT_ICONS = ("circuit", "hvac", "water", "ev", "pool", "other")
+FIELD_TYPES = ("text", "choice")
 
 
 def _num(v: Any) -> bool:
@@ -52,12 +55,58 @@ def _check_gateway(g: Any, path: str) -> list[str]:
             errs.append(f"{path}.solar[{i}].where: one of {SOLAR_WHERE}")
         if s.get("power_w") is not None and not _num(s["power_w"]):
             errs.append(f"{path}.solar[{i}].power_w: a number or null")
+    if g.get("legs") is not None and g["legs"] not in LEGS:
+        errs.append(f"{path}.legs: one of {LEGS}")
     for i, c in enumerate(g.get("circuits") or []):
         if not isinstance(c.get("on"), (bool, type(None))):
             errs.append(f"{path}.circuits[{i}].on: true, false or null")
+        if c.get("icon", "circuit") not in CIRCUIT_ICONS:
+            errs.append(f"{path}.circuits[{i}].icon: one of {CIRCUIT_ICONS}")
     for name in g.get("unavailable") or []:
         if name not in OBJECTS:
             errs.append(f"{path}.unavailable: {name!r} is not one of {OBJECTS}")
+    return errs
+
+
+def _check_site(s: Any) -> list[str]:
+    if s is None:
+        return []
+    if not isinstance(s, dict):
+        return ["site: not an object"]
+    errs: list[str] = []
+    w = s.get("weather")
+    if w is not None:
+        if not isinstance(w, dict):
+            errs.append("site.weather: an object or null")
+        else:
+            if w.get("code") is not None and not isinstance(w["code"], int):
+                errs.append("site.weather.code: a WMO weather code (integer) or null")
+            if w.get("temp_c") is not None and not _num(w["temp_c"]):
+                errs.append("site.weather.temp_c: a number or null")
+    return errs
+
+
+def _check_customise(c: Any) -> list[str]:
+    """The Customise diagram form: where to save, and the fields the bridge offers."""
+    if c is None:
+        return []
+    if not isinstance(c, dict) or not isinstance(c.get("endpoint"), str):
+        return ["customise.endpoint: a URL string is required"]
+    errs: list[str] = []
+    for i, f in enumerate(c.get("fields") or []):
+        p = f"customise.fields[{i}]"
+        if not isinstance(f, dict):
+            errs.append(f"{p}: not an object")
+            continue
+        for key in ("scope", "key", "label"):
+            if not isinstance(f.get(key), str) or not f.get(key):
+                errs.append(f"{p}.{key}: a non-empty string is required")
+        if f.get("type") not in FIELD_TYPES:
+            errs.append(f"{p}.type: one of {FIELD_TYPES}")
+        elif f["type"] == "choice":
+            ch = f.get("choices")
+            if not isinstance(ch, list) or not all(isinstance(x, list) and len(x) == 2 for x in ch):
+                errs.append(f"{p}.choices: a list of [value, label] pairs")
     return errs
 
 
@@ -76,4 +125,4 @@ def validate(payload: Any) -> list[str]:
         errs.append("gateways: ids must be unique")
     for i, g in enumerate(gws):
         errs += _check_gateway(g, f"gateways[{i}]")
-    return errs
+    return errs + _check_site(payload.get("site")) + _check_customise(payload.get("customise"))

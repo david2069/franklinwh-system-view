@@ -31,6 +31,23 @@ def api_system():
 <button onclick="FWHSystemView.open()">System view</button>
 ```
 
+**Customise diagram.** Where no reading tells the bridge how a site is built, the user
+tells it. The bridge stores the answers (one JSON object) and lets the package do the rest:
+
+```python
+raw = my_payload()
+p = sv.customise.apply(raw, saved)                     # names, legs, models, solar, appliances
+p["customise"] = {"endpoint": "api/system/customise", "fields": sv.customise.fields(raw, saved)}
+return sv.build(p)
+
+@app.put("/api/system/customise")
+def save(values: dict):
+    store(sv.customise.clean(values, my_payload()))   # ValueError → 400
+```
+
+**Weather.** Put the current Open-Meteo reading in `site.weather` (`code`, `condition`,
+`temp_c`); the page draws it next to the site's name.
+
 The payload is described in `schema.py`; `fixtures/` holds examples. Signs: grid
 `power_w` > 0 imports, battery `power_w` > 0 discharges. Leave out what you can't read.
 

@@ -8,11 +8,12 @@ from __future__ import annotations
 from importlib import resources
 from pathlib import Path
 
-from .layout import scene
+from . import customise
+from .layout import scene, strip
 from .schema import SCHEMA_VERSION, validate
 
-__version__ = "0.1.0"
-__all__ = ["SCHEMA_VERSION", "build", "fixture", "scene", "static_dir", "validate"]
+__version__ = "0.2.0"
+__all__ = ["SCHEMA_VERSION", "build", "customise", "fixture", "scene", "static_dir", "validate"]
 
 
 def static_dir() -> Path:
@@ -29,6 +30,7 @@ def build(payload: dict) -> dict:
     if errs:
         raise ValueError("; ".join(errs))
     out = dict(payload)
+    out["strip"] = strip(payload)
     out["gateways"] = [dict(g, scenes={o: scene(g, o) for o in ("landscape", "portrait")})
                        for g in payload["gateways"]]
     return out

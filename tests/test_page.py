@@ -160,3 +160,75 @@ def test_the_overlay_ends_above_the_hosts_bottom_bar(browser, base):
     page.wait_for_selector(".fwhsv-obj")
     assert page.evaluate("document.querySelector('.fwhsv').getBoundingClientRect().bottom") == 844 - 60
     ctx.close()
+
+
+def test_the_strip_shows_the_site_and_the_weather(browser, base):
+    ctx, page, errors = _page(browser, base)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-wx")
+    assert "Los Angeles" in page.locator(".fwhsv-site").inner_text()
+    assert "Partly cloudy" in page.locator(".fwhsv-wx").inner_text()
+    assert errors == []
+    ctx.close()
+
+
+def test_customise_saves_and_the_diagram_follows(browser, base):
+    ctx, page, errors = _page(browser, base, "?fixture=au_single_phase")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='agate']")
+    page.click(".fwhsv-cust")
+    page.fill(".fwhsv-form input[placeholder='Example home']", "Beach house")
+    page.select_option(".fwhsv-form select >> nth=0", "hidden")       # weather
+    page.click(".fwhsv-save")
+    page.wait_for_selector(".fwhsv-result.ok")
+    assert "Saved" in page.locator(".fwhsv-result").inner_text()     # the result stays in the dialog
+    assert page.locator(".fwhsv-dlg").is_visible()
+    page.click(".fwhsv-cancel")
+    assert "Beach house" in page.locator(".fwhsv-site").inner_text()
+    assert errors == []
+    ctx.close()
+
+
+def test_a_refused_answer_is_shown_in_the_dialog(browser, base):
+    ctx, page, _ = _page(browser, base, "?fixture=au_single_phase")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    page.click(".fwhsv-cust")
+    page.fill(".fwhsv-form input >> nth=0", "x" * 61)
+    page.click(".fwhsv-save")
+    page.wait_for_selector(".fwhsv-result.err")
+    assert "60 characters" in page.locator(".fwhsv-result").inner_text()
+    ctx.close()
+
+
+def test_a_full_battery_fits_inside_its_ring(browser, base):
+    ctx, page, _ = _page(browser, base)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-soc")
+    t = page.locator(".fwhsv-soc").bounding_box()
+    r = page.locator(".fwhsv-ring0").bounding_box()
+    assert t["width"] < r["width"] - 14          # inside the ring's stroke
+    ctx.close()
+
+
+def test_the_hover_text_sits_above_the_picture_not_over_its_label(browser, base):
+    ctx, page, _ = _page(browser, base)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='home']")
+    page.hover(".fwhsv-obj[data-id='home'] .fwhsv-big")
+    tip = page.locator(".fwhsv-tip").bounding_box()
+    big = page.locator(".fwhsv-obj[data-id='home'] .fwhsv-big").bounding_box()
+    assert tip["y"] + tip["height"] <= big["y"]
+    ctx.close()
+
+
+def test_a_saved_answer_that_disagrees_with_a_reading_is_flagged_at_once(browser, base):
+    ctx, page, _ = _page(browser, base, "?fixture=us_tou_two_apowers_solar")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    page.click(".fwhsv-cust")
+    page.select_option(".fwhsv-form select >> nth=1", "L1")          # the aGate reads two legs
+    page.click(".fwhsv-save")
+    page.wait_for_selector(".fwhsv-result.ok")
+    assert "the aGate reads 2" in page.locator(".fwhsv-mismatch").inner_text()
+    ctx.close()

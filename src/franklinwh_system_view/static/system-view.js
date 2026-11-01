@@ -18,7 +18,23 @@
     apower: '<rect x="12" y="4" width="24" height="40" rx="5"/><path d="M12 14 H36 M12 34 H36"/><path d="M25 18 L21 25 H27 L23 31"/>',
     toggle: '<rect x="5" y="15" width="38" height="18" rx="9"/><circle class="f" cx="34" cy="24" r="5.5"/>',
     toggleoff: '<rect x="5" y="15" width="38" height="18" rx="9"/><circle cx="14" cy="24" r="5"/>',
-    gen: '<rect x="5" y="10" width="38" height="26" rx="3"/><path d="M26 14 L19 24 H25 L22 32 L29 22 H23 Z"/><circle cx="13" cy="40" r="3"/><circle cx="35" cy="40" r="3"/>'
+    gen: '<rect x="5" y="10" width="38" height="26" rx="3"/><path d="M26 14 L19 24 H25 L22 32 L29 22 H23 Z"/><circle cx="13" cy="40" r="3"/><circle cx="35" cy="40" r="3"/>',
+    // smart-circuit appliances (the user's choice in Customise diagram)
+    hvac: '<rect x="5" y="10" width="38" height="20" rx="3"/><path d="M10 24 H38 M14 36 L12 42 M24 36 V42 M34 36 L36 42"/>',
+    water: '<path d="M24 5 C16 16 11 23 11 30 A13 13 0 0 0 37 30 C37 23 32 16 24 5 Z"/><path d="M18 31 A6 6 0 0 0 24 37"/>',
+    ev: '<path d="M8 30 L12 18 H36 L40 30 V38 H8 Z M8 30 H40"/><circle cx="15" cy="38" r="3"/><circle cx="33" cy="38" r="3"/><path d="M25 6 L21 13 H27 L23 20" stroke-width="2"/>',
+    pool: '<path d="M4 30 Q10 26 16 30 T28 30 T40 30 T46 30 M4 38 Q10 34 16 38 T28 38 T40 38 T46 38 M16 26 V8 H24 M30 26 V8 H38"/>',
+    other: '<path d="M18 6 V16 M30 6 V16 M12 16 H36 V24 A12 12 0 0 1 12 24 Z M24 36 V44"/>',
+    // weather (WMO code mapped in Python: layout.weather_icon)
+    sun: '<circle cx="24" cy="24" r="8"/><path d="M24 4 V9 M24 39 V44 M4 24 H9 M39 24 H44 M10 10 L13.5 13.5 M34.5 34.5 L38 38 M10 38 L13.5 34.5 M34.5 13.5 L38 10"/>',
+    partcloud: '<circle cx="18" cy="17" r="7"/><path d="M18 4 V6 M5 17 H7 M8.5 7.5 L10 9 M27.5 7.5 L26 9"/><path d="M16 40 H36 A7 7 0 0 0 35 26 A10 10 0 0 0 16 28 A6 6 0 0 0 16 40 Z"/>',
+    cloud: '<path d="M14 38 H36 A8 8 0 0 0 35 22 A12 12 0 0 0 12 25 A7 7 0 0 0 14 38 Z"/>',
+    fog: '<path d="M14 26 H36 A8 8 0 0 0 35 12 A11 11 0 0 0 13 15 A6 6 0 0 0 14 26 Z M8 33 H40 M12 40 H36"/>',
+    rainlight: '<path d="M14 30 H36 A8 8 0 0 0 35 14 A12 12 0 0 0 12 17 A7 7 0 0 0 14 30 Z M24 35 L22 41"/>',
+    rain: '<path d="M14 30 H36 A8 8 0 0 0 35 14 A12 12 0 0 0 12 17 A7 7 0 0 0 14 30 Z M18 35 L16 41 M28 35 L26 41"/>',
+    rainheavy: '<path d="M14 28 H36 A8 8 0 0 0 35 12 A12 12 0 0 0 12 15 A7 7 0 0 0 14 28 Z M15 33 L12 42 M24 33 L21 42 M33 33 L30 42"/>',
+    snow: '<path d="M14 28 H36 A8 8 0 0 0 35 12 A12 12 0 0 0 12 15 A7 7 0 0 0 14 28 Z M17 36 H21 M19 34 V38 M27 38 H31 M29 36 V40"/>',
+    storm: '<path d="M14 28 H36 A8 8 0 0 0 35 12 A12 12 0 0 0 12 15 A7 7 0 0 0 14 28 Z M25 30 L20 38 H27 L23 45"/>'
   };
   const PORTRAIT_BELOW = 640;
   const POLL_MS = 5000;
@@ -27,7 +43,7 @@
   // below / above: CSS selectors for the host's top bar and bottom bar (e.g. a phone tab
   // bar). The overlay fits between them, so the host's bars stay visible and usable.
   let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null, above: null };
-  let root, svg, panel, tip, chips, startBox, lastFocus, timer, data = null, gwIdx = 0, sel = null;
+  let root, svg, panel, tip, chips, startBox, siteEl, custBtn, dlg, lastFocus, timer, data = null, gwIdx = 0, sel = null;
   let zoom = 1, panX = 0, panY = 0, scn = null;
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -51,18 +67,25 @@
       '<button type="button" data-z="out" aria-label="Zoom out">−</button>' +
       '<button type="button" data-z="fit" aria-label="Fit to screen">Fit</button>' +
       '<button type="button" data-z="in" aria-label="Zoom in">+</button></div>' +
+      '<button type="button" class="fwhsv-cust" hidden>Customise diagram</button>' +
       '<label class="fwhsv-start"><input type="checkbox"> Start on ' + esc(opts.title) + '</label>' +
       '<button type="button" class="fwhsv-close">' + esc(opts.backLabel) + ' ✕</button></div>' +
+      '<div class="fwhsv-site" hidden></div>' +
       '<div class="fwhsv-body"><div class="fwhsv-stage"><svg class="fwhsv-svg" role="group" aria-label="System diagram"></svg>' +
       '<p class="fwhsv-empty" hidden></p></div>' +
       '<aside class="fwhsv-panel" hidden aria-live="polite"></aside></div>' +
-      '<div class="fwhsv-tip" hidden></div>';
+      '<div class="fwhsv-tip" hidden></div>' +
+      '<div class="fwhsv-dlg" hidden role="dialog" aria-modal="true" aria-label="Customise diagram"><form class="fwhsv-form"></form></div>';
     document.body.appendChild(root);
     svg = root.querySelector("svg");
     panel = root.querySelector(".fwhsv-panel");
     tip = root.querySelector(".fwhsv-tip");
     chips = root.querySelector(".fwhsv-chips");
     startBox = root.querySelector(".fwhsv-start input");
+    siteEl = root.querySelector(".fwhsv-site");
+    custBtn = root.querySelector(".fwhsv-cust");
+    dlg = root.querySelector(".fwhsv-dlg");
+    custBtn.addEventListener("click", openCustomise);
     startBox.checked = store.get(KEY_START) === "1";
     startBox.addEventListener("change", () => store.set(KEY_START, startBox.checked ? "1" : null));
     root.querySelector(".fwhsv-close").addEventListener("click", () => close());
@@ -72,7 +95,7 @@
       else if (z === "out") setZoom(zoom / 1.25);
       else if (z === "fit") { zoom = 1; panX = panY = 0; applyView(); }
     });
-    root.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+    root.addEventListener("keydown", (e) => { if (e.key === "Escape") dlg.hidden ? close() : closeCustomise(); });
     wirePointer();
     window.addEventListener("resize", () => { if (!root.hidden) { placeBelow(); draw(); } });
   }
@@ -135,7 +158,8 @@
       s += `<rect class="fwhsv-frame" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="14"/>`;
       if (n.soc !== null && n.soc !== undefined) {
         s += `<circle class="fwhsv-ring0" cx="${n.x + 48}" cy="${ry}" r="${r}"/><circle class="fwhsv-ring" cx="${n.x + 48}" cy="${ry}" r="${r}" stroke-dasharray="${f} ${c}" transform="rotate(-90 ${n.x + 48} ${ry})"/>`;
-        s += `<text class="fwhsv-soc" x="${n.x + 48}" y="${ry + 6}">${Math.round(n.soc)}%</text>`;
+        const pct = Math.round(n.soc);     // three digits need a smaller size to stay inside the ring
+        s += `<text class="fwhsv-soc${pct >= 100 ? " w3" : ""}" x="${n.x + 48}" y="${ry + 6}">${pct}%</text>`;
       } else s += icon("apower", n.x + 24, ry - 24, 48);
       s += `<text class="fwhsv-lbl start" x="${n.x + 92}" y="${ry - 8}">${esc(n.label)}</text>`;
       s += `<text class="fwhsv-st start" x="${n.x + 92}" y="${ry + 16}">${esc(n.status)}${n.value ? " · " + esc(n.value) : ""}</text>`;
@@ -156,6 +180,8 @@
     if (!data) return;
     const empty = root.querySelector(".fwhsv-empty");
     const gws = data.gateways || [];
+    drawStrip();
+    custBtn.hidden = !data.customise;
     chips.innerHTML = gws.length > 1 ? gws.map((g, i) =>
       `<button type="button" role="tab" aria-selected="${i === gwIdx}" data-i="${i}" class="s-${g.online ? "ok" : "off"}">${esc(g.name)}</button>`).join("") : "";
     chips.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { gwIdx = +b.dataset.i; sel = null; zoom = 1; draw(); }));
@@ -187,9 +213,11 @@
   function showTip(n, x, y) {
     tip.innerHTML = `<b>${esc(n.label)}</b><br>${esc(n.hover)}`;
     tip.hidden = false;
-    const w = tip.offsetWidth, vw = window.innerWidth;
+    // Above the pointer, so the tip never covers the label and value under the picture;
+    // below it only when there's no room above.
+    const w = tip.offsetWidth, h = tip.offsetHeight, vw = window.innerWidth;
     tip.style.left = Math.max(8, Math.min(vw - w - 8, x + 14)) + "px";
-    tip.style.top = (y + 14) + "px";
+    tip.style.top = (y - h - 14 >= 8 ? y - h - 14 : y + 18) + "px";
   }
   function showPanel(n) {
     panel.hidden = false;
@@ -197,6 +225,77 @@
       `<h3>${esc(n.label)}</h3><p>${esc(n.hover)}</p>` +
       `<dl>${n.rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
     panel.querySelector(".fwhsv-pclose").addEventListener("click", () => { sel = null; panel.hidden = true; draw(); });
+  }
+
+  /* ── site strip: name and weather ── */
+  function drawStrip() {
+    const st = data.strip || {};
+    if (!st.name && !st.weather) { siteEl.hidden = true; return; }
+    siteEl.hidden = false;
+    let h = st.name ? `<strong>${esc(st.name)}</strong>` : "";
+    if (st.weather) {
+      h += `<span class="fwhsv-wx" tabindex="0" title="${esc(st.weather.hover)}"><svg viewBox="0 0 48 48" aria-hidden="true"><g class="fwhsv-ic">${IC[st.weather.icon] || ""}</g></svg>${esc(st.weather.text)}</span>`;
+    }
+    siteEl.innerHTML = h;
+  }
+
+  /* ── Customise diagram: the bridge's own settings, saved in the bridge ── */
+  function fieldHtml(f, i) {
+    const id = "fwhsv-f" + i, auto = f.auto != null && f.auto !== "" ? String(f.auto) : null;
+    let ctl;
+    if (f.type === "choice") {
+      ctl = `<select id="${id}" data-i="${i}">` + f.choices.map(([v, l]) =>
+        `<option value="${esc(v)}"${String(f.value == null ? "" : f.value) === String(v) ? " selected" : ""}>${esc(l)}</option>`).join("") + "</select>";
+    } else {
+      ctl = `<input id="${id}" data-i="${i}" type="text" value="${esc(f.value || "")}" placeholder="${esc(f.placeholder || auto || "")}">`;
+    }
+    let note = f.help ? `<small>${esc(f.help)}</small>` : "";
+    if (f.confirm) note += `<small class="fwhsv-confirm">Please confirm: this is a guess, not a reading.</small>`;
+    if (f.mismatch) note += `<small class="fwhsv-mismatch">${esc(f.mismatch)}</small>`;
+    return `<div class="fwhsv-field"><label for="${id}">${esc(f.label)}</label>${ctl}${note}</div>`;
+  }
+  function openCustomise() {
+    const c = data && data.customise;
+    if (!c) return;
+    const fields = c.fields || [], groups = [];
+    fields.forEach((f, i) => {
+      let g = groups.find((x) => x.scope === f.scope);
+      if (!g) groups.push(g = { scope: f.scope, title: f.group || f.scope, items: [] });
+      g.items.push(fieldHtml(f, i));
+    });
+    const form = dlg.querySelector("form");
+    form.innerHTML = `<h3>Customise diagram</h3><p class="fwhsv-intro">${esc(c.intro || "")}</p>` +
+      groups.map((g) => `<fieldset><legend>${esc(g.title)}</legend>${g.items.join("")}</fieldset>`).join("") +
+      `<p class="fwhsv-result" role="status" hidden></p>` +
+      `<div class="fwhsv-actions"><button type="button" class="fwhsv-cancel">Close</button><button type="submit" class="fwhsv-save">Save</button></div>`;
+    form.onsubmit = (e) => { e.preventDefault(); saveCustomise(fields); };
+    form.querySelector(".fwhsv-cancel").onclick = closeCustomise;
+    dlg.hidden = false;
+    const first = form.querySelector("input, select");
+    if (first) first.focus();
+  }
+  function closeCustomise() { dlg.hidden = true; custBtn.focus(); }
+  async function saveCustomise(fields) {
+    const form = dlg.querySelector("form"), out = dlg.querySelector(".fwhsv-result");
+    const values = {};
+    form.querySelectorAll("[data-i]").forEach((el) => {
+      const f = fields[+el.dataset.i];
+      (values[f.scope] = values[f.scope] || {})[f.key] = el.value.trim();
+    });
+    out.hidden = false; out.className = "fwhsv-result"; out.textContent = "Saving…";
+    try {
+      const r = await fetch(data.customise.endpoint, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.detail || ("HTTP " + r.status));
+      await load();
+      openCustomise();                 // redraw the form: readings and mismatches follow the answers
+      const res = dlg.querySelector(".fwhsv-result");
+      res.hidden = false; res.className = "fwhsv-result ok";
+      res.textContent = "Saved. The diagram now uses these settings, in every browser.";
+    } catch (e) {
+      out.className = "fwhsv-result err";
+      out.textContent = "Not saved: " + e.message;
+    }
   }
 
   /* ── data ── */

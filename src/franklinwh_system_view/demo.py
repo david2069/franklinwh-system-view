@@ -10,7 +10,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import build, fixture, static_dir
+from . import build, customise, fixture, static_dir
 
 PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -25,6 +25,17 @@ document.getElementById("open").onclick = () => FWHSystemView.open();</script></
 
 
 def make_handler(default: str):
+    saved: dict = {}    # Customise diagram answers per fixture, in memory (a bridge stores them on disk)
+
+    def payload(name: str) -> dict:
+        raw = fixture(name)
+        p = customise.apply(raw, saved.get(name))
+        p["customise"] = {"endpoint": f"/api/system/customise?fixture={name}",
+                          "intro": "Where no reading tells the bridge how your site is built, tell it here. "
+                                   "Empty or Automatic uses the readings.",
+                          "fields": customise.fields(raw, saved.get(name))}
+        return build(p)
+
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):  # quiet
             pass
@@ -46,7 +57,7 @@ def make_handler(default: str):
             if u.path == "/api/system":
                 name = parse_qs(u.query).get("fixture", [default])[0]
                 try:
-                    return self._send(200, json.dumps(build(fixture(name))), "application/json")
+                    return self._send(200, json.dumps(payload(name)), "application/json")
                 except FileNotFoundError:
                     return self._send(404, json.dumps({"detail": f"no fixture {name!r}"}), "application/json")
             if u.path.startswith("/system-view/"):
@@ -55,6 +66,17 @@ def make_handler(default: str):
                     ctype = "text/css" if f.suffix == ".css" else "text/javascript"
                     return self._send(200, f.read_bytes(), ctype)
             return self._send(404, "not found", "text/plain")
+        def do_PUT(self):
+            u = urlparse(self.path)
+            if u.path != "/api/system/customise":
+                return self._send(404, "not found", "text/plain")
+            name = parse_qs(u.query).get("fixture", [default])[0]
+            try:
+                values = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
+                saved[name] = customise.clean(values, fixture(name))
+            except (ValueError, FileNotFoundError) as e:
+                return self._send(400, json.dumps({"detail": str(e)}), "application/json")
+            return self._send(200, json.dumps({"ok": True, "saved": saved[name]}), "application/json")
     return H
 
 
