@@ -1,0 +1,76 @@
+/* FranklinWH System view overlay. Colours use the host bridge's tokens when it has them
+   (--text-primary etc.), with fallbacks, so the overlay matches either bridge's theme. */
+.fwhsv{
+  --sv-bg: var(--bg-primary, #121924); --sv-panel: var(--bg-card, #1a2331); --sv-tile: #152018;
+  --sv-ink: var(--text-primary, #e4e9f0); --sv-muted: var(--text-secondary, #97a3b4); --sv-line: #3a4658;
+  --sv-ok: #4fd286; --sv-warn: #f0a83a; --sv-crit: #f07067; --sv-off: #7d889a;
+  position: fixed; inset: 0; z-index: 900; display: flex; flex-direction: column;
+  background: var(--sv-bg); color: var(--sv-ink);
+  font-family: inherit; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+}
+@media (prefers-color-scheme: light){ .fwhsv:not([data-theme="dark"]){
+  --sv-bg: var(--bg-primary, #f3f5f7); --sv-panel: var(--bg-card, #ffffff); --sv-tile: #e8f3ec;
+  --sv-ink: var(--text-primary, #18202b); --sv-muted: var(--text-secondary, #5b6676); --sv-line: #cfd6df;
+  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; } }
+.fwhsv[hidden]{ display: none !important; }
+html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
+.fwhsv-bar{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; border-bottom: 1px solid var(--sv-line); }
+.fwhsv-title{ font-size: 1.05rem; margin-right: auto; }
+.fwhsv button{ font: inherit; font-size: .85rem; color: var(--sv-ink); background: var(--sv-panel); border: 1px solid var(--sv-line); border-radius: 8px; padding: 6px 12px; min-height: 36px; cursor: pointer; }
+.fwhsv button:focus-visible, .fwhsv-obj:focus-visible{ outline: 2px solid var(--sv-ok); outline-offset: 2px; }
+.fwhsv-zoom{ display: flex; gap: 4px; }
+.fwhsv-zoom button{ min-width: 40px; }
+.fwhsv-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
+.fwhsv-chips button[aria-selected="true"]{ border-color: var(--sv-ok); color: var(--sv-ok); }
+.fwhsv-chips button.s-off{ color: var(--sv-off); }
+.fwhsv-start{ font-size: .82rem; color: var(--sv-muted); display: flex; gap: 6px; align-items: center; }
+.fwhsv-body{ flex: 1; display: flex; min-height: 0; }
+.fwhsv-stage{ flex: 1; min-width: 0; overflow: auto; padding: 8px; position: relative; }
+.fwhsv-svg{ display: block; width: 100%; height: 100%; touch-action: none; }
+.fwhsv-empty{ position: absolute; inset: 40% 16px auto; text-align: center; color: var(--sv-muted); }
+.fwhsv-panel{ width: 320px; max-width: 100%; border-left: 1px solid var(--sv-line); background: var(--sv-panel); padding: 16px; overflow: auto; position: relative; }
+.fwhsv-panel h3{ margin: 0 32px 6px 0; font-size: 1.15rem; }
+.fwhsv-panel p{ margin: 0 0 12px; color: var(--sv-muted); font-size: .9rem; }
+.fwhsv-panel dl{ display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0; }
+.fwhsv-panel dt{ color: var(--sv-muted); }
+.fwhsv-panel dd{ margin: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fwhsv-pclose{ position: absolute; top: 10px; right: 10px; padding: 2px 8px !important; min-height: 28px !important; }
+@media (max-width: 760px){
+  .fwhsv-body{ flex-direction: column; }
+  .fwhsv-panel{ width: auto; border-left: 0; border-top: 1px solid var(--sv-line); max-height: 45%; }
+  .fwhsv-start{ order: 9; }
+}
+.fwhsv-tip{ position: fixed; z-index: 901; pointer-events: none; max-width: 240px; background: var(--sv-ink); color: var(--sv-bg); font-size: .82rem; line-height: 1.4; padding: 7px 10px; border-radius: 8px; }
+/* drawing */
+.fwhsv-obj{ cursor: pointer; }
+.fwhsv-hit{ fill: transparent; }
+.fwhsv-obj:hover .fwhsv-hit{ fill: var(--sv-ok); opacity: .08; }
+.fwhsv-frame{ fill: var(--sv-tile); stroke: var(--sv-ok); stroke-width: 2; }
+.fwhsv-obj:hover .fwhsv-frame, .fwhsv-obj.sel .fwhsv-frame{ stroke-width: 3.5; }
+.fwhsv-ic{ fill: none; stroke: var(--sv-ok); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.fwhsv-ic .f{ fill: var(--sv-ok); stroke: none; }
+.fwhsv-lbl{ font-size: 15px; fill: var(--sv-ink); text-anchor: middle; }
+.fwhsv-big{ font-size: 22px; font-weight: 700; fill: var(--sv-ink); text-anchor: middle; font-variant-numeric: tabular-nums; }
+.fwhsv-st{ font-size: 13px; fill: var(--sv-ok); text-anchor: middle; }
+.fwhsv-sub{ font-size: 12px; fill: var(--sv-muted); text-anchor: middle; }
+.fwhsv-svg .start{ text-anchor: start; }
+.fwhsv-ring0{ fill: none; stroke: var(--sv-line); stroke-width: 7; }
+.fwhsv-ring{ fill: none; stroke: var(--sv-ok); stroke-width: 7; stroke-linecap: round; }
+.fwhsv-soc{ font-size: 18px; font-weight: 700; fill: var(--sv-ok); text-anchor: middle; }
+/* states: grey offline/disabled, amber warning, red critical */
+.s-off .fwhsv-frame{ fill: none; stroke: var(--sv-off); stroke-dasharray: 6 5; }
+.s-off .fwhsv-ic{ stroke: var(--sv-off); } .s-off .fwhsv-ic .f{ fill: var(--sv-off); }
+.s-off .fwhsv-st, .s-off .fwhsv-soc{ fill: var(--sv-off); } .s-off .fwhsv-ring{ stroke: var(--sv-off); }
+.s-warn .fwhsv-frame{ stroke: var(--sv-warn); } .s-warn .fwhsv-ic{ stroke: var(--sv-warn); } .s-warn .fwhsv-ic .f{ fill: var(--sv-warn); }
+.s-warn .fwhsv-st, .s-warn .fwhsv-soc{ fill: var(--sv-warn); } .s-warn .fwhsv-ring{ stroke: var(--sv-warn); }
+.s-crit .fwhsv-frame{ stroke: var(--sv-crit); } .s-crit .fwhsv-ic{ stroke: var(--sv-crit); } .s-crit .fwhsv-ic .f{ fill: var(--sv-crit); }
+.s-crit .fwhsv-st, .s-crit .fwhsv-soc{ fill: var(--sv-crit); } .s-crit .fwhsv-ring{ stroke: var(--sv-crit); }
+/* wires */
+.fwhsv-wire{ fill: none; stroke: var(--sv-line); stroke-width: 2.4; stroke-dasharray: 7 6; }
+.fwhsv-wire.fwd{ stroke: var(--sv-ok); animation: fwhsv-f 1s linear infinite; }
+.fwhsv-wire.rev{ stroke: var(--sv-ok); animation: fwhsv-r 1s linear infinite; }
+.fwhsv-wire.dc{ stroke: var(--sv-warn); }
+.fwhsv-wire.off{ stroke: var(--sv-crit); opacity: .5; stroke-dasharray: 2 6; }
+@keyframes fwhsv-f{ to{ stroke-dashoffset: -13; } }
+@keyframes fwhsv-r{ to{ stroke-dashoffset: 13; } }
+@media (prefers-reduced-motion: reduce){ .fwhsv-wire.fwd, .fwhsv-wire.rev{ animation: none; } }

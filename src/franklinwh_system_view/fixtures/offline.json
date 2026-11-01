@@ -1,0 +1,4 @@
+{"version": 1, "site": {"name": "Example home"},
+ "gateways": [{"id": "gw1", "name": "aGate", "kind": "agate", "online": false,
+   "mode": null, "inverter": null, "grid": {"state": "unknown", "power_w": null},
+   "home": {"power_w": null}, "battery": {"soc_pct": null, "power_w": null}, "solar": [], "circuits": []}]}
