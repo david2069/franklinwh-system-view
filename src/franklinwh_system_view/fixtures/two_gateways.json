@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "site": {
+    "name": "Los Angeles",
+    "timezone": "America/Los_Angeles",
+    "weather": {
+      "code": 2,
+      "condition": "Partly cloudy",
+      "temp_c": 18.4
+    }
+  },
+  "gateways": [
+    {
+      "id": "gw1",
+      "name": "House",
+      "kind": "agate",
+      "online": true,
+      "mode": "Emergency Backup",
+      "inverter": "Standby",
+      "reserve_pct": 100,
+      "grid": {
+        "state": "connected",
+        "power_w": 820,
+        "voltage_v": 241.6,
+        "freq_hz": 60.0,
+        "legs_v": [
+          120.8,
+          120.8
+        ]
+      },
+      "home": {
+        "power_w": 820
+      },
+      "battery": {
+        "soc_pct": 100,
+        "power_w": 0,
+        "count": 1
+      },
+      "solar": [],
+      "circuits": [
+        {
+          "id": 1,
+          "name": "Circuit 1",
+          "on": true
+        },
+        {
+          "id": 2,
+          "name": "Circuit 2",
+          "on": true
+        },
+        {
+          "id": 3,
+          "name": "Circuit 3",
+          "on": false
+        }
+      ]
+    },
+    {
+      "id": "gw2",
+      "name": "Garage",
+      "kind": "agate",
+      "online": true,
+      "mode": "Time-of-Use",
+      "inverter": "Charging",
+      "reserve_pct": 20,
+      "grid": {
+        "state": "connected",
+        "power_w": 0,
+        "voltage_v": 240.2,
+        "freq_hz": 60.0,
+        "legs_v": [
+          120.1,
+          120.1
+        ]
+      },
+      "home": {
+        "power_w": 1300
+      },
+      "battery": {
+        "soc_pct": 62,
+        "power_w": -2900,
+        "count": 2
+      },
+      "solar": [
+        {
+          "id": "solar",
+          "where": "agate",
+          "power_w": 4200
+        }
+      ],
+      "circuits": [
+        {
+          "id": 1,
+          "name": "Circuit 1",
+          "on": true
+        },
+        {
+          "id": 2,
+          "name": "Circuit 2",
+          "on": true
+        },
+        {
+          "id": 3,
+          "name": "Circuit 3",
+          "on": true
+        }
+      ]
+    }
+  ]
+}

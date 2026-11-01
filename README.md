@@ -31,6 +31,15 @@ def api_system():
 <button onclick="FWHSystemView.open()">System view</button>
 ```
 
+**A host with its own gateway picker** keeps it and the overlay on the same gateway:
+
+```js
+FWHSystemView.mount({endpoint: "api/system",
+  gateway: () => picker.id,                 // shown when the overlay opens
+  onGateway: (id) => picker.select(id)});   // the user picked a gateway in the overlay
+picker.onChange((id) => FWHSystemView.showGateway(id));
+```
+
 **Customise diagram.** Where no reading tells the bridge how a site is built, the user
 tells it. The bridge stores the answers (one JSON object) and lets the package do the rest:
 
