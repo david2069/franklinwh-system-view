@@ -63,9 +63,26 @@ def _wire(a: dict, b: dict, flow: str, *, dc: bool = False, side_a="c", side_b="
 
 # ── the objects, independent of arrangement ──────────────────────────────────────
 
+NA_NAMES = {"grid": ("pylon", "Grid"), "home": ("house", "Home"), "solar": ("solar", "Solar"),
+            "battery": ("apower", "Battery"), "circuits": ("toggleoff", "Smart circuits"),
+            "generator": ("gen", "Generator")}
+
+
+def _na(g: dict, name: str) -> dict | None:
+    """An object the bridge says it can't read: drawn grey, "Not available here"."""
+    if name not in (g.get("unavailable") or []):
+        return None
+    icon, label = NA_NAMES[name]
+    return {"id": "circuits" if name == "circuits" else name, "icon": icon, "label": label,
+            "value": "", "status": "Not available here", "state": "off",
+            "hover": f"This bridge can't read the {label.lower()} on this gateway.",
+            "rows": [["State", "Not available here"]], "flow": "idle", "dc": False}
+
 def _grid(g: dict) -> dict | None:
     grid = g.get("grid")
-    if grid is None or "grid" in (g.get("unavailable") or []):
+    if _na(g, "grid"):
+        return _na(g, "grid")
+    if grid is None:
         return None
     st = grid.get("state", "unknown")
     p = grid.get("power_w")
@@ -119,6 +136,8 @@ def _agate(g: dict) -> dict:
 
 
 def _home(g: dict) -> dict | None:
+    if _na(g, "home"):
+        return _na(g, "home")
     home = g.get("home")
     if home is None:
         return None
@@ -128,6 +147,8 @@ def _home(g: dict) -> dict | None:
 
 
 def _solars(g: dict) -> list[dict]:
+    if _na(g, "solar"):
+        return [_na(g, "solar")]
     out = []
     arrays = g.get("solar") or []
     for i, s in enumerate(arrays[:MAX_SOLAR]):
@@ -149,6 +170,8 @@ def _solars(g: dict) -> list[dict]:
 
 
 def _batteries(g: dict) -> list[dict]:
+    if _na(g, "battery"):
+        return [_na(g, "battery")]
     bat = g.get("battery")
     if bat is None:
         return []
@@ -186,6 +209,8 @@ def _batteries(g: dict) -> list[dict]:
 
 
 def _circuits(g: dict) -> list[dict]:
+    if _na(g, "circuits"):
+        return [_na(g, "circuits")]
     out = []
     for i, c in enumerate(g.get("circuits") or []):
         on = c.get("on")
@@ -197,11 +222,14 @@ def _circuits(g: dict) -> list[dict]:
                     "status": "On" if on else "Off" if on is False else "Unknown",
                     "state": "ok" if on else "off",
                     "hover": f"{name} is {'on' if on else 'off'}." if on is not None else f"{name}: state unknown.",
-                    "rows": [["State", "On" if on else "Off"]], "flow": "fwd" if on else "idle"})
+                    "rows": [["State", "On" if on else "Off" if on is False else "Unknown"]],
+                    "flow": "fwd" if on else "idle"})
     return out
 
 
 def _generator(g: dict) -> dict | None:
+    if _na(g, "generator"):
+        return _na(g, "generator")
     gen = g.get("generator")
     if gen is None:
         return None
