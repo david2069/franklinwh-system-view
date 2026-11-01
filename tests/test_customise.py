@@ -95,3 +95,7 @@ def test_wmo_codes_map_to_a_picture(code, icon):
 
 def test_build_adds_the_strip():
     assert build(us())["strip"]["weather"]["text"] == "Partly cloudy · 18 °C"
+
+
+def test_the_weather_sentence_keeps_the_unit():
+    assert build(us())["strip"]["weather"]["hover"] == "Weather in Los Angeles now: partly cloudy, 18 °C. From Open-Meteo."

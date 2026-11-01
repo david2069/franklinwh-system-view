@@ -255,8 +255,9 @@ def strip(payload: dict) -> dict:
         temp = w.get("temp_c")
         text = cond + (f" · {temp:.0f} °C" if temp is not None else "")
         where = f" in {site['name']}" if site.get("name") else ""
+        now = ", ".join(x for x in (cond.lower(), f"{temp:.0f} °C" if temp is not None else "") if x)
         out["weather"] = {"icon": weather_icon(w["code"]), "text": text.strip(" ·"),
-                          "hover": f"Weather{where} now: {text.strip(' ·').lower()}. From Open-Meteo."}
+                          "hover": f"Weather{where} now: {now}. From Open-Meteo."}
     return out
 
 
