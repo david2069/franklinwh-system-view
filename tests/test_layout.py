@@ -102,12 +102,26 @@ def test_an_unknown_orientation_is_refused():
         scene(gw("offline"), "square")
 
 
-def test_grid_marked_unavailable_is_not_drawn():
-    g = dict(gw("us_backup_no_solar"), unavailable=["grid"])
-    assert "grid" not in ids(scene(g))
-
-
 def test_charge_is_a_whole_percent_everywhere():
     g = dict(gw("us_backup_no_solar"), battery={"soc_pct": 39.7, "power_w": 500})
     b = node(scene(g), "battery")
     assert b["soc"] == 40 and "40 % full" in b["hover"] and ["Charge", "40 %"] in b["rows"]
+
+
+@pytest.mark.parametrize("name,node_id", [("grid", "grid"), ("home", "home"), ("solar", "solar"),
+                                          ("battery", "battery"), ("circuits", "circuits"),
+                                          ("generator", "generator")])
+def test_what_a_bridge_cant_read_is_drawn_not_available_here(name, node_id):
+    g = fixture("us_backup_no_solar")["gateways"][0]
+    g["unavailable"] = [name]
+    nodes = {n["id"]: n for n in scene(g)["nodes"]}
+    assert nodes[node_id]["status"] == "Not available here" and nodes[node_id]["state"] == "off"
+    if name == "circuits":
+        assert not any(i.startswith("sc") for i in nodes)
+
+
+def test_a_circuit_in_an_unknown_state_says_unknown_in_its_details():
+    g = fixture("us_backup_no_solar")["gateways"][0]
+    g["circuits"][0]["on"] = None
+    sc1 = next(n for n in scene(g)["nodes"] if n["id"] == "sc1")
+    assert sc1["status"] == "Unknown" and sc1["rows"] == [["State", "Unknown"]]

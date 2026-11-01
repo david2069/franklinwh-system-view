@@ -1,6 +1,13 @@
 # Changelog
 
-## [0.2.0] — unreleased
+## [0.2.1] — unreleased
+
+### Fixed
+- An object in `unavailable` is drawn grey, "Not available here", as the design says. It
+  was left out (the grid) or ignored (the others). Reported by the Modbus Bridge review.
+- A smart circuit in an unknown state said "Off" in its details; it says "Unknown".
+
+## [0.2.0] — 2026-11-01
 
 ### Added
 - **Customise diagram** (`customise.fields`, `apply`, `clean`, and a dialog on the page). The
