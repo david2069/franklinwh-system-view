@@ -15,6 +15,7 @@ FLOW_W = 50
 #: Batteries drawn one by one; more than this collapse into one "+N more" card.
 MAX_UNITS = 4
 MAX_SOLAR = 3
+WHERE = {"agate": "aGate", "apbox": "aPbox", "apower": "aPower S (DC)", "ahub": "aHub port", "panel": "Panel"}
 
 
 def kw(w: Any) -> str:
@@ -69,9 +70,9 @@ def _grid(g: dict) -> dict | None:
     st = grid.get("state", "unknown")
     p = grid.get("power_w")
     if st == "outage":
-        return {"icon": "gridout", "label": "Grid", "value": kw(0), "status": "Outage",
-                "state": "crit", "hover": "The grid is down. Your batteries are powering the backed-up circuits.",
-                "rows": [["State", "Outage"]], "flow": "off"}
+        return _with_legs({"icon": "gridout", "label": "Grid", "value": kw(0), "status": "Outage",
+                           "state": "crit", "hover": "The grid is down. Your batteries are powering the backed-up circuits.",
+                           "rows": [["State", "Outage"]], "flow": "off"}, g)
     word = ("Importing" if p and p >= FLOW_W else "Exporting" if p and p <= -FLOW_W else "Idle")
     rows = [["State", "Connected" if st != "unknown" else "Unknown"], ["Right now", f"{word} {kw(p)}" if word != "Idle" else "Idle"]]
     if grid.get("voltage_v") is not None:
@@ -79,14 +80,24 @@ def _grid(g: dict) -> dict | None:
     if grid.get("freq_hz") is not None:
         rows.append(["Frequency", f"{grid['freq_hz']:.2f} Hz"])
     if st == "spike":
-        return {"icon": "gridspike", "label": "Grid", "value": kw(p), "status": "Voltage spike",
-                "state": "warn", "hover": "Your aGate reported a grid voltage spike. The grid is still connected.",
-                "rows": rows, "flow": _flow(p)}
+        return _with_legs({"icon": "gridspike", "label": "Grid", "value": kw(p), "status": "Voltage spike",
+                           "state": "warn", "hover": "Your aGate reported a grid voltage spike. The grid is still connected.",
+                           "rows": rows, "flow": _flow(p)}, g)
     hover = {"Importing": f"The grid is up. You are importing {kw(p)}.",
              "Exporting": f"The grid is up. You are exporting {kw(p)}.",
              "Idle": "The grid is up. Almost nothing is flowing to or from it right now."}[word]
-    return {"icon": "pylon", "label": "Grid", "value": kw(p), "status": "Connected" if st != "unknown" else "Unknown",
-            "state": "ok" if st != "unknown" else "off", "hover": hover, "rows": rows, "flow": _flow(p)}
+    out = {"icon": "pylon", "label": "Grid", "value": kw(p), "status": "Connected" if st != "unknown" else "Unknown",
+           "state": "ok" if st != "unknown" else "off", "hover": hover, "rows": rows, "flow": _flow(p)}
+    return _with_legs(out, g)
+
+
+def _with_legs(spec: dict, g: dict) -> dict:
+    """The service legs this aGate is wired to, under the grid picture (a user setting)."""
+    legs = g.get("legs")
+    if legs:
+        spec["sub"] = legs.replace("+", " + ")
+        spec["rows"] = spec["rows"] + [["Service legs", spec["sub"]]]
+    return spec
 
 
 def _agate(g: dict) -> dict:
@@ -123,11 +134,17 @@ def _solars(g: dict) -> list[dict]:
         p = s.get("power_w")
         name = s.get("name") or ("Solar" if len(arrays) == 1 else f"Solar {i + 1}")
         producing = p is not None and p >= FLOW_W
-        out.append({"id": s.get("id") or f"solar{i}", "icon": "solar", "label": name, "value": kw(p),
-                    "status": "Producing" if producing else "Not producing",
-                    "state": "ok" if producing else "off",
-                    "hover": f"{name} is producing {kw(p)}." if producing else f"{name} isn't producing right now.",
-                    "rows": [["Now", kw(p)]], "flow": _flow(p), "dc": s.get("where") == "apower"})
+        if p is None:       # drawn from Customise diagram; nothing reports its power
+            status, hover = "Not reported", f"{name} is on your diagram, but nothing reports its power."
+        elif producing:
+            status, hover = "Producing", f"{name} is producing {kw(p)}."
+        else:
+            status, hover = "Not producing", f"{name} isn't producing right now."
+        out.append({"id": s.get("id") or f"solar{i}", "icon": "solar", "label": name,
+                    "value": kw(p) if p is not None else "", "status": status,
+                    "state": "ok" if producing else "off", "hover": hover,
+                    "rows": [["Now", kw(p)], ["Connected", WHERE.get(s.get("where"), "–")]],
+                    "flow": _flow(p), "dc": s.get("where") == "apower"})
     return out
 
 
@@ -151,10 +168,12 @@ def _batteries(g: dict) -> list[dict]:
 
     if not units:
         n = bat.get("count")
-        name = "Batteries" if (n or 0) > 1 else "Battery"
-        if n and n > 1:
-            name = f"Batteries ×{n}"
-        return [card("battery", name, bat.get("soc_pct"), bat.get("power_w"))]
+        base = bat.get("model") or ("Batteries" if (n or 0) > 1 else "Battery")
+        name = f"{base} ×{n}" if n and n > 1 else base
+        c = card("battery", name, bat.get("soc_pct"), bat.get("power_w"))
+        if bat.get("model"):
+            c["rows"].append(["Model", bat["model"]])
+        return [c]
     cards = [card(u.get("id") or f"bat{i}", u.get("name") or f"Battery {i + 1}", u.get("soc_pct"),
                   u.get("power_w"), u.get("state", "ok")) for i, u in enumerate(units)]
     if len(cards) > MAX_UNITS:
@@ -171,7 +190,9 @@ def _circuits(g: dict) -> list[dict]:
     for i, c in enumerate(g.get("circuits") or []):
         on = c.get("on")
         name = c.get("name") or f"Circuit {i + 1}"
-        out.append({"id": f"sc{c.get('id', i + 1)}", "icon": "toggle" if on else "toggleoff",
+        kind = c.get("icon") or "circuit"
+        out.append({"id": f"sc{c.get('id', i + 1)}",
+                    "icon": ("toggle" if on else "toggleoff") if kind == "circuit" else kind,
                     "label": name, "value": kw(c["power_w"]) if c.get("power_w") is not None else "",
                     "status": "On" if on else "Off" if on is False else "Unknown",
                     "state": "ok" if on else "off",
@@ -186,11 +207,58 @@ def _generator(g: dict) -> dict | None:
         return None
     p = gen.get("power_w")
     running = p is not None and p >= FLOW_W
+    if p is None:
+        return {"icon": "gen", "label": "Generator", "value": "", "status": "Not reported", "state": "off",
+                "hover": "A generator is on your diagram, but nothing reports its power.",
+                "rows": [["State", "Not reported"]], "flow": "idle"}
     return {"icon": "gen", "label": "Generator", "value": kw(p) if running else "",
             "status": "Running" if running else gen.get("status") or "Standby",
             "state": "ok" if running else "off",
             "hover": f"The generator is supplying {kw(p)}." if running else "The generator is on standby.",
             "rows": [["State", "Running" if running else "Standby"]], "flow": _flow(p)}
+
+
+# ── the site strip: its name and the weather ─────────────────────────────────────
+
+def weather_icon(code: Any) -> str | None:
+    """A WMO weather code (Open-Meteo ``weather_code``) as one of the weather pictures."""
+    if not isinstance(code, int):
+        return None
+    if code in (0, 1):
+        return "sun"
+    if code == 2:
+        return "partcloud"
+    if code == 3:
+        return "cloud"
+    if code in (45, 48):
+        return "fog"
+    if code in (51, 53, 56, 61, 80):
+        return "rainlight"
+    if code in (55, 57, 63, 66, 81):
+        return "rain"
+    if code in (65, 67, 82):
+        return "rainheavy"
+    if 71 <= code <= 77 or code in (85, 86):
+        return "snow"
+    if code >= 95:
+        return "storm"
+    return "cloud"
+
+
+def strip(payload: dict) -> dict:
+    """What sits above the diagram: the site's name and, when the bridge has it, the weather."""
+    site = payload.get("site") or {}
+    out: dict = {"name": site.get("name") or ""}
+    w = site.get("weather")
+    if w and weather_icon(w.get("code")):
+        cond = w.get("condition") or ""
+        temp = w.get("temp_c")
+        text = cond + (f" · {temp:.0f} °C" if temp is not None else "")
+        where = f" in {site['name']}" if site.get("name") else ""
+        now = ", ".join(x for x in (cond.lower(), f"{temp:.0f} °C" if temp is not None else "") if x)
+        out["weather"] = {"icon": weather_icon(w["code"]), "text": text.strip(" ·"),
+                          "hover": f"Weather{where} now: {now}. From Open-Meteo."}
+    return out
 
 
 # ── arrangements ──────────────────────────────────────────────────────────────

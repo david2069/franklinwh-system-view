@@ -80,3 +80,27 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 @keyframes fwhsv-f{ to{ stroke-dashoffset: -13; } }
 @keyframes fwhsv-r{ to{ stroke-dashoffset: 13; } }
 @media (prefers-reduced-motion: reduce){ .fwhsv-wire.fwd, .fwhsv-wire.rev{ animation: none; } }
+/* site strip */
+.fwhsv-site{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 8px 16px 0; font-size: .95rem; }
+.fwhsv-site[hidden]{ display: none; }
+.fwhsv-wx{ display: inline-flex; align-items: center; gap: 6px; color: var(--sv-muted); }
+.fwhsv-wx svg{ width: 26px; height: 26px; }
+.fwhsv-soc.w3{ font-size: 14px; }
+/* Customise diagram dialog: above the overlay, results stay inside it */
+.fwhsv-dlg{ position: absolute; inset: 0; z-index: 2; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; overflow: auto; padding: 24px 16px; }
+.fwhsv-dlg[hidden]{ display: none; }
+.fwhsv-form{ background: var(--sv-panel); color: var(--sv-ink); border: 1px solid var(--sv-line); border-radius: 14px; padding: 18px 20px; width: 100%; max-width: 560px; }
+.fwhsv-form h3{ margin: 0 0 4px; }
+.fwhsv-intro{ margin: 0 0 12px; color: var(--sv-muted); font-size: .88rem; }
+.fwhsv-form fieldset{ border: 1px solid var(--sv-line); border-radius: 10px; margin: 0 0 12px; padding: 10px 12px; }
+.fwhsv-form legend{ padding: 0 6px; font-weight: 700; }
+.fwhsv-field{ display: grid; grid-template-columns: 170px 1fr; gap: 4px 12px; align-items: center; margin: 6px 0; }
+.fwhsv-field label{ font-size: .88rem; }
+.fwhsv-field input, .fwhsv-field select{ font: inherit; font-size: .9rem; color: var(--sv-ink); background: var(--sv-bg); border: 1px solid var(--sv-line); border-radius: 8px; padding: 6px 8px; min-height: 34px; min-width: 0; }
+.fwhsv-field small{ grid-column: 2; color: var(--sv-muted); font-size: .78rem; }
+.fwhsv-field .fwhsv-confirm, .fwhsv-field .fwhsv-mismatch{ color: var(--sv-warn); }
+.fwhsv-result{ margin: 4px 0 10px; font-size: .88rem; }
+.fwhsv-result.ok{ color: var(--sv-ok); } .fwhsv-result.err{ color: var(--sv-crit); }
+.fwhsv-actions{ display: flex; justify-content: flex-end; gap: 8px; }
+.fwhsv-save{ border-color: var(--sv-ok) !important; color: var(--sv-ok) !important; }
+@media (max-width: 520px){ .fwhsv-field{ grid-template-columns: 1fr; } .fwhsv-field small{ grid-column: 1; } }

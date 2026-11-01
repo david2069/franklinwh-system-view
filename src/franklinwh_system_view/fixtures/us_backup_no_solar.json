@@ -1,8 +1,59 @@
-{"version": 1, "site": {"name": "Example home", "timezone": "America/Los_Angeles"},
- "gateways": [{"id": "gw1", "name": "aGate", "kind": "agate", "online": true,
-   "mode": "Emergency Backup", "inverter": "Standby", "reserve_pct": 100,
-   "grid": {"state": "connected", "power_w": 820, "voltage_v": 241.6, "freq_hz": 60.0, "legs_v": [120.8, 120.8]},
-   "home": {"power_w": 820},
-   "battery": {"soc_pct": 100, "power_w": 0, "count": 1},
+{
+ "version": 1,
+ "site": {
+  "name": "Los Angeles",
+  "timezone": "America/Los_Angeles",
+  "weather": {
+   "code": 2,
+   "condition": "Partly cloudy",
+   "temp_c": 18.4
+  }
+ },
+ "gateways": [
+  {
+   "id": "gw1",
+   "name": "aGate",
+   "kind": "agate",
+   "online": true,
+   "mode": "Emergency Backup",
+   "inverter": "Standby",
+   "reserve_pct": 100,
+   "grid": {
+    "state": "connected",
+    "power_w": 820,
+    "voltage_v": 241.6,
+    "freq_hz": 60.0,
+    "legs_v": [
+     120.8,
+     120.8
+    ]
+   },
+   "home": {
+    "power_w": 820
+   },
+   "battery": {
+    "soc_pct": 100,
+    "power_w": 0,
+    "count": 1
+   },
    "solar": [],
-   "circuits": [{"id": 1, "name": "Circuit 1", "on": true}, {"id": 2, "name": "Circuit 2", "on": true}, {"id": 3, "name": "Circuit 3", "on": false}]}]}
+   "circuits": [
+    {
+     "id": 1,
+     "name": "Circuit 1",
+     "on": true
+    },
+    {
+     "id": 2,
+     "name": "Circuit 2",
+     "on": true
+    },
+    {
+     "id": 3,
+     "name": "Circuit 3",
+     "on": false
+    }
+   ]
+  }
+ ]
+}
