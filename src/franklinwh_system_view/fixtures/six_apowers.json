@@ -1,0 +1,10 @@
+{"version": 1, "site": {"name": "Example home"},
+ "gateways": [{"id": "gw1", "name": "aGate", "kind": "agate", "online": true,
+   "mode": "Self-Consumption", "inverter": "Discharging",
+   "grid": {"state": "connected", "power_w": 120}, "home": {"power_w": 6100},
+   "battery": {"soc_pct": 71, "power_w": 6000, "count": 6, "units": [
+     {"id": "u1", "soc_pct": 72, "power_w": 1000}, {"id": "u2", "soc_pct": 70, "power_w": 1000},
+     {"id": "u3", "soc_pct": 71, "power_w": 1000, "state": "warn"}, {"id": "u4", "soc_pct": 71, "power_w": 1000},
+     {"id": "u5", "soc_pct": 70, "power_w": 1000}, {"id": "u6", "soc_pct": 72, "power_w": 1000}]},
+   "solar": [{"id": "pv1", "where": "agate", "power_w": 2000}, {"id": "pv2", "where": "apbox", "power_w": 1500}],
+   "circuits": []}]}

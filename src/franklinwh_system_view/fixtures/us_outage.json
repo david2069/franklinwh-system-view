@@ -1,0 +1,7 @@
+{"version": 1, "site": {"name": "Example home", "timezone": "America/Denver"},
+ "gateways": [{"id": "gw1", "name": "aGate", "kind": "agate", "online": true,
+   "mode": "Emergency Backup", "inverter": "Off-grid", "reserve_pct": 100,
+   "grid": {"state": "outage", "power_w": 0, "voltage_v": null, "freq_hz": null},
+   "home": {"power_w": 1900},
+   "battery": {"soc_pct": 86, "power_w": 1900, "count": 1},
+   "solar": [], "circuits": [], "generator": {"power_w": 0}}]}

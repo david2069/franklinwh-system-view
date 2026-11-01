@@ -1,0 +1,7 @@
+{"version": 1, "site": {"name": "Example home", "timezone": "Australia/Sydney"},
+ "gateways": [{"id": "gw1", "name": "aGate", "kind": "agate", "online": true,
+   "mode": "Self-Consumption", "inverter": "Discharging", "reserve_pct": 20,
+   "grid": {"state": "connected", "power_w": -300, "voltage_v": 242.9, "freq_hz": 50.01, "legs_v": [242.9]},
+   "home": {"power_w": 900}, "battery": {"soc_pct": 74, "power_w": 400, "count": 1},
+   "solar": [{"id": "solar", "where": "agate", "power_w": 800}],
+   "circuits": [{"id": 1, "name": "Circuit 1", "on": true}, {"id": 2, "name": "Circuit 2", "on": false}]}]}
