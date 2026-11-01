@@ -249,3 +249,21 @@ def test_the_shown_gateway_follows_the_hosts_picker_and_reports_back(browser, ba
     assert page.evaluate("window.picked") == ["gw2"]                                         # the host is told
     assert errors == []
     ctx.close()
+
+
+def test_a_tap_opens_the_details_and_leaves_no_tip_over_them(browser, base):
+    ctx = browser.new_context(viewport={"width": 390, "height": 844}, has_touch=True, is_mobile=True)
+    page = ctx.new_page()
+    page.goto(base + "/")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='battery']")
+    # What iOS Safari sends for a tap: a touch pointerenter, never a pointerleave, then a click.
+    page.evaluate("""() => { const el = document.querySelector(".fwhsv-obj[data-id='battery']");
+      const r = el.getBoundingClientRect();
+      el.dispatchEvent(new PointerEvent("pointerenter", {pointerType: "touch", clientX: r.x + 5, clientY: r.y + 5}));
+      el.dispatchEvent(new MouseEvent("click", {bubbles: true})); }""")
+    page.wait_for_selector(".fwhsv-panel:not([hidden])")
+    assert page.locator(".fwhsv-tip").is_hidden()
+    page.tap(".fwhsv-pclose")
+    assert page.locator(".fwhsv-panel").is_hidden()
+    ctx.close()
