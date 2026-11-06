@@ -4,7 +4,8 @@
  * calls FWHSystemView.mount({endpoint: "/api/system"}). Nothing else in the bridge's UI
  * changes. A host with its own gateway picker passes gateway (the id, or a function giving
  * it, read on open) and onGateway(id), called when the user picks a gateway here, and calls
- * FWHSystemView.showGateway(id) when its picker changes. The layout arrives precomputed (franklinwh_system_view.layout); this file only
+ * FWHSystemView.showGateway(id) when its picker changes; with gatewayChips: false the overlay
+ * leaves its own gateway chips out and follows the host's picker only. The layout arrives precomputed (franklinwh_system_view.layout); this file only
  * draws it, and handles zoom, hover, the detail panel and opening/closing.
  */
 (function () {
@@ -41,13 +42,15 @@
   const PORTRAIT_BELOW = 640;
   const POLL_MS = 5000;
   const KEY_START = "fwh-system-view:start";
+  const KEY_OPTS = "fwh-system-view:options";   // "1" shown, "0" folded; unset: shown on wide screens
+  const NARROW = 760;
 
   // below / above: CSS selectors for the host's top bar and bottom bar (e.g. a phone tab
   // bar). The overlay fits between them, so the host's bars stay visible and usable.
   // gateway / onGateway: keep the shown gateway and the host's gateway picker the same.
   let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null, above: null,
-               gateway: null, onGateway: null };
-  let root, svg, panel, tip, chips, startBox, siteEl, custBtn, dlg, lastFocus, timer, data = null, gwIdx = 0, sel = null;
+               gateway: null, onGateway: null, gatewayChips: true };
+  let root, bar, optBtn, svg, panel, tip, chips, startBox, siteEl, custBtn, dlg, lastFocus, timer, data = null, gwIdx = 0, sel = null;
   let want = null;   // a gateway id to show once it is in the data
   let zoom = 1, panX = 0, panY = 0, scn = null;
 
@@ -68,13 +71,15 @@
       '<div class="fwhsv-bar">' +
       '<strong class="fwhsv-title">' + esc(opts.title) + '</strong>' +
       '<div class="fwhsv-chips" role="tablist" aria-label="Gateways"></div>' +
+      '<button type="button" class="fwhsv-opt" aria-controls="fwhsv-opts">Options ▾</button>' +
+      '<div class="fwhsv-opts" id="fwhsv-opts">' +
       '<div class="fwhsv-zoom" role="group" aria-label="Zoom">' +
       '<button type="button" data-z="out" aria-label="Zoom out">−</button>' +
       '<button type="button" data-z="fit" aria-label="Fit to screen">Fit</button>' +
       '<button type="button" data-z="in" aria-label="Zoom in">+</button></div>' +
       '<button type="button" class="fwhsv-cust" hidden>Customise diagram</button>' +
-      '<label class="fwhsv-start"><input type="checkbox"> Start on ' + esc(opts.title) + '</label>' +
-      '<button type="button" class="fwhsv-close">' + esc(opts.backLabel) + ' ✕</button></div>' +
+      '<label class="fwhsv-start"><input type="checkbox"> Start on ' + esc(opts.title) + '</label></div>' +
+      '<button type="button" class="fwhsv-close" aria-label="' + esc(opts.backLabel) + '"><span class="fwhsv-closelbl">' + esc(opts.backLabel) + '</span> ✕</button></div>' +
       '<div class="fwhsv-site" hidden></div>' +
       '<div class="fwhsv-body"><div class="fwhsv-stage"><svg class="fwhsv-svg" role="group" aria-label="System diagram"></svg>' +
       '<p class="fwhsv-empty" hidden></p></div>' +
@@ -82,6 +87,8 @@
       '<div class="fwhsv-tip" hidden></div>' +
       '<div class="fwhsv-dlg" hidden role="dialog" aria-modal="true" aria-label="Customise diagram"><form class="fwhsv-form"></form></div>';
     document.body.appendChild(root);
+    bar = root.querySelector(".fwhsv-bar");
+    optBtn = root.querySelector(".fwhsv-opt");
     svg = root.querySelector("svg");
     panel = root.querySelector(".fwhsv-panel");
     tip = root.querySelector(".fwhsv-tip");
@@ -93,6 +100,14 @@
     custBtn.addEventListener("click", openCustomise);
     startBox.checked = store.get(KEY_START) === "1";
     startBox.addEventListener("change", () => store.set(KEY_START, startBox.checked ? "1" : null));
+    // Zoom, Customise and Start on fold away behind Options: on a phone they took more room
+    // than the diagram. Folded by default on narrow screens; the user's choice is kept.
+    const saved = store.get(KEY_OPTS);
+    showOptions(saved == null ? window.innerWidth >= NARROW : saved === "1");
+    optBtn.addEventListener("click", () => {
+      const on = optBtn.getAttribute("aria-expanded") !== "true";
+      showOptions(on); store.set(KEY_OPTS, on ? "1" : "0");
+    });
     root.querySelector(".fwhsv-close").addEventListener("click", () => close());
     root.querySelector(".fwhsv-zoom").addEventListener("click", (e) => {
       const z = e.target.closest("button") && e.target.closest("button").dataset.z;
@@ -103,6 +118,17 @@
     root.addEventListener("keydown", (e) => { if (e.key === "Escape") dlg.hidden ? close() : closeCustomise(); });
     wirePointer();
     window.addEventListener("resize", () => { if (!root.hidden) { placeBelow(); draw(); } });
+    // The host's bars can change height after opening (a top bar still loading, chips
+    // wrapping); follow them, or a gap or an overlap is left.
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => { if (!root.hidden) placeBelow(); });
+      [opts.below, opts.above].forEach((q) => { const el = q && document.querySelector(q); if (el) ro.observe(el); });
+    }
+  }
+  function showOptions(on) {
+    optBtn.setAttribute("aria-expanded", on ? "true" : "false");
+    bar.classList.toggle("folded", !on);
+    if (!root.hidden && data) draw();     // the stage changed size
   }
 
   function placeBelow() {
@@ -192,7 +218,8 @@
     }
     drawStrip();
     custBtn.hidden = !data.customise;
-    chips.innerHTML = gws.length > 1 ? gws.map((g, i) =>
+    chips.hidden = !opts.gatewayChips || gws.length < 2;
+    chips.innerHTML = !chips.hidden ? gws.map((g, i) =>
       `<button type="button" role="tab" aria-selected="${i === gwIdx}" data-i="${i}" class="s-${g.online ? "ok" : "off"}">${esc(g.name)}</button>`).join("") : "";
     chips.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => {
       gwIdx = +b.dataset.i; sel = null; zoom = 1; draw();
@@ -335,6 +362,7 @@
     lastFocus = document.activeElement;
     if (opts.gateway != null) want = typeof opts.gateway === "function" ? opts.gateway() : opts.gateway;
     root.hidden = false;
+    zoom = 1; panX = panY = 0; applyView();   // always open fitted to the screen
     placeBelow();
     document.documentElement.classList.add("fwhsv-open");
     if (push !== false && location.hash !== "#system") history.pushState({ fwhsv: 1 }, "", "#system");

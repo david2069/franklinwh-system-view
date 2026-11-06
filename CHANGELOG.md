@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.4] — 2026-11-07
+
+### Added
+- `mount({gatewayChips: false})`: a host with its own gateway picker can leave the overlay's
+  gateway chips out, so the gateway is chosen in one place.
+
+### Changed
+- Zoom, Customise diagram and Start on are under an **Options** button: folded on phones,
+  shown on wider screens, and the user's choice is remembered. On a phone they took more
+  room than the diagram. On a phone the close button shows ✕ only.
+- The overlay always opens fitted to the screen; a zoom from last time is not kept.
+
+### Fixed
+- The overlay follows the host's top and bottom bars when they change height after it
+  opened. A top bar that was taller while loading left an empty gap above the overlay.
+
 ## [0.2.3] — unreleased
 
 ### Fixed
