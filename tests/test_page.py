@@ -267,3 +267,76 @@ def test_a_tap_opens_the_details_and_leaves_no_tip_over_them(browser, base):
     page.tap(".fwhsv-pclose")
     assert page.locator(".fwhsv-panel").is_hidden()
     ctx.close()
+
+
+def test_the_overlay_follows_the_hosts_top_bar_when_it_changes_height(browser, base):
+    # A host's top bar can be taller while it loads (chips not yet hidden) and shrink after
+    # the overlay opened; the overlay left an empty gap above itself.
+    ctx, page, _ = _page(browser, base, width=390, height=844)
+    page.evaluate("""() => { const h = document.querySelector('header');
+      h.style.cssText += ';position:fixed;top:0;left:0;right:0;height:150px;z-index:50;background:#333'; }""")
+    page.evaluate("FWHSystemView.close(); FWHSystemView.mount({endpoint: '/api/system', below: 'header'})")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    page.evaluate("document.querySelector('header').style.height = '56px'")
+    page.wait_for_function("document.querySelector('.fwhsv').getBoundingClientRect().top === 56")
+    ctx.close()
+
+
+def test_a_phone_opens_with_the_view_options_folded_away(browser, base):
+    ctx, page, _ = _page(browser, base, width=390, height=844)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.locator("button[data-z='fit']").is_hidden()
+    assert page.locator(".fwhsv-start").is_hidden()
+    page.click(".fwhsv-opt")
+    assert page.locator("button[data-z='fit']").is_visible()
+    assert page.get_attribute(".fwhsv-opt", "aria-expanded") == "true"
+    page.goto(base + "/")                                     # the choice is remembered
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.locator("button[data-z='fit']").is_visible()
+    ctx.close()
+
+
+def test_a_desktop_opens_with_the_view_options_shown(browser, base):
+    ctx, page, _ = _page(browser, base)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.locator("button[data-z='fit']").is_visible()
+    page.click(".fwhsv-opt")
+    assert page.locator("button[data-z='fit']").is_hidden()
+    ctx.close()
+
+
+def test_the_diagram_takes_most_of_a_phone_screen(browser, base):
+    ctx, page, _ = _page(browser, base, width=390, height=844)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    bar = page.locator(".fwhsv-bar").bounding_box()
+    assert bar["height"] < 70                                 # one row: title, options, close
+    ctx.close()
+
+
+def test_a_host_with_its_own_picker_can_leave_the_gateway_chips_out(browser, base):
+    ctx, page, _ = _page(browser, base, "?fixture=two_gateways")
+    page.evaluate("""() => FWHSystemView.mount({endpoint: '/api/system?fixture=two_gateways',
+      gateway: () => 'gw2', gatewayChips: false})""")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.locator(".fwhsv-chips button").count() == 0
+    assert page.locator(".fwhsv-chips").is_hidden()
+    ctx.close()
+
+
+def test_reopening_starts_fitted_to_the_screen(browser, base):
+    ctx, page, _ = _page(browser, base)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    vb0 = page.get_attribute(".fwhsv-svg", "viewBox")
+    page.click("button[data-z='in']")
+    page.click(".fwhsv-close")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.get_attribute(".fwhsv-svg", "viewBox") == vb0
+    ctx.close()

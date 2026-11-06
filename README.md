@@ -7,7 +7,9 @@ full-page overlay over a bridge's own dashboard, and can be the page a browser s
 - **Simple by default.** Pictures and plain words: battery charge, mode, what the inverter
   is doing, grid up or down, solar, home use, circuits. Hover for a sentence, click for details.
 - **Fits any screen.** Desktop and tablet get a landscape layout, phones a portrait one.
-  Zoom with − / Fit / +, pinch, or Ctrl+wheel; drag to pan when zoomed.
+  Zoom with − / Fit / +, pinch, or Ctrl+wheel; drag to pan when zoomed. It always opens
+  fitted. Zoom, Customise diagram and Start on sit under **Options**, folded on phones and
+  shown on wider screens; the user's choice is remembered.
 - **Colours mean state.** Green normal, grey offline or disabled, amber warning, red critical.
 - **Only what's there is drawn.** A site with no solar shows no solar.
 
@@ -39,6 +41,9 @@ FWHSystemView.mount({endpoint: "api/system",
   onGateway: (id) => picker.select(id)});   // the user picked a gateway in the overlay
 picker.onChange((id) => FWHSystemView.showGateway(id));
 ```
+
+With `gatewayChips: false` the overlay leaves out its own gateway chips and shows only the
+gateway the host's picker has.
 
 **Customise diagram.** Where no reading tells the bridge how a site is built, the user
 tells it. The bridge stores the answers (one JSON object) and lets the package do the rest:

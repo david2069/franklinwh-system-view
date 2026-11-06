@@ -27,6 +27,10 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 .fwhsv-zoom{ display: flex; gap: 4px; }
 .fwhsv-zoom button{ min-width: 40px; }
 .fwhsv-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
+.fwhsv-chips[hidden]{ display: none; }
+.fwhsv-opts{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.fwhsv-bar.folded .fwhsv-opts{ display: none; }
+.fwhsv-opt[aria-expanded="true"]{ border-color: var(--sv-ok); color: var(--sv-ok); }
 .fwhsv-chips button[aria-selected="true"]{ border-color: var(--sv-ok); color: var(--sv-ok); }
 .fwhsv-chips button.s-off{ color: var(--sv-off); }
 .fwhsv-start{ font-size: .82rem; color: var(--sv-muted); display: flex; gap: 6px; align-items: center; }
@@ -44,8 +48,9 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 @media (max-width: 760px){
   .fwhsv-body{ flex-direction: column; }
   .fwhsv-panel{ width: auto; border-left: 0; border-top: 1px solid var(--sv-line); max-height: 45%; }
-  .fwhsv-start{ order: 9; }
+  .fwhsv-opts{ order: 9; flex-basis: 100%; }
 }
+@media (max-width: 520px){ .fwhsv-closelbl{ display: none; } }
 .fwhsv-tip{ position: fixed; z-index: calc(var(--fwhsv-z, 45) + 1); pointer-events: none; max-width: 240px; background: var(--sv-ink); color: var(--sv-bg); font-size: .82rem; line-height: 1.4; padding: 7px 10px; border-radius: 8px; }
 /* drawing */
 .fwhsv-obj{ cursor: pointer; }
