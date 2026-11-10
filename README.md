@@ -10,6 +10,10 @@ full-page overlay over a bridge's own dashboard, and can be the page a browser s
   Zoom with − / Fit / +, pinch, or Ctrl+wheel; drag to pan when zoomed. It always opens
   fitted. Zoom, Customise diagram and Start on sit under **Options**, folded on phones and
   shown on wider screens; the user's choice is remembered.
+- **Extras, when wanted.** Under **Options** each has its own switch, off until switched on
+  and remembered in the browser: **Voltage & frequency** under the grid, **Today's energy**
+  (kWh) under each picture, **Power on wires** (the kW on each wire, with an arrow the way it
+  goes) and **Alarms** (a count on the device; its details list them).
 - **Colours mean state.** Green normal, grey offline or disabled, amber warning, red critical.
 - **Only what's there is drawn.** A site with no solar shows no solar.
 
@@ -64,6 +68,12 @@ def save(values: dict):
 
 The payload is described in `schema.py`; `fixtures/` holds examples. Signs: grid
 `power_w` > 0 imports, battery `power_w` > 0 discharges. Leave out what you can't read.
+
+Optional per gateway: `energy_today` (`grid_import_kwh`, `grid_export_kwh`, `solar_kwh`,
+`home_kwh`, `battery_charge_kwh`, `battery_discharge_kwh`, each kWh or null) and `alarms`, a
+list of `{target, unit?, code?, text, level}` where `target` is one of the objects (`grid`,
+`agate`, `home`, `solar`, `battery`, `circuits`, `generator`), `unit` the 1-based battery or
+circuit it is about, and `level` `warn` or `crit`. A value that is missing is not drawn.
 
 ## Try it
 

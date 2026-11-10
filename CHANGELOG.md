@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.0] — 2026-11-11
+
+### Added
+- Four extras under **Options**, each with its own switch, off until switched on and
+  remembered in the browser (owner, Direct Connect Bridge):
+  - **Voltage & frequency** under the grid (`grid.voltage_v`, `grid.freq_hz`, already in the
+    payload but not drawn).
+  - **Today's energy** in kWh under the grid (in and out), solar, home and the battery card,
+    from a new optional `energy_today`.
+  - **Power on wires**: the kW on each wire, by its longest straight run, with an arrow the way
+    the power goes.
+  - **Alarms**: a new optional `alarms` list; a count on the device's corner (amber warning,
+    red critical) and the list in its details.
+  Each picture keeps a line free for its extras, so switching one on doesn't move the wires.
+
 ## [0.2.4] — 2026-11-07
 
 ### Added

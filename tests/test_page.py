@@ -340,3 +340,34 @@ def test_reopening_starts_fitted_to_the_screen(browser, base):
     page.wait_for_selector(".fwhsv-obj")
     assert page.get_attribute(".fwhsv-svg", "viewBox") == vb0
     ctx.close()
+
+
+def test_extras_are_switched_on_one_by_one_and_remembered(browser, base):
+    """Owner, 2026-11-11: voltage and frequency, today's energy, power on the wires and
+    alarms, each with its own switch under Options, off until switched on."""
+    for width in (1280, 390):
+        ctx, page, errors = _page(browser, base, "?fixture=us_tou_two_apowers_solar", width=width, height=844)
+        page.click("#open")
+        page.wait_for_selector(".fwhsv-obj[data-id='agate']")
+        if page.locator(".fwhsv-bar.folded").count():
+            page.click(".fwhsv-opt")
+        vis = lambda sel: page.locator(sel).first.is_visible()      # noqa: E731
+        assert not vis(".fwhsv-x-vhz") and not vis(".fwhsv-x-energy")
+        assert not vis(".fwhsv-x-flow") and not vis(".fwhsv-x-alarms")
+        for k, sel in (("vhz", ".fwhsv-x-vhz"), ("energy", ".fwhsv-x-energy"),
+                       ("flow", ".fwhsv-flowlbl"), ("alarms", ".fwhsv-badge")):
+            page.check(f"[data-show='{k}']")
+            assert vis(sel), k
+        assert "240.2 V · 60.00 Hz" in page.locator(".fwhsv-x-vhz").first.text_content()
+        assert page.locator(".fwhsv-flowlbl").count() >= 3                  # home, solar, battery
+        page.click(".fwhsv-obj[data-id='agate']")
+        assert "Grid frequency out of range" in page.locator(".fwhsv-panel").text_content()
+        page.reload()                                                   # reopens on #system
+        if page.locator(".fwhsv").is_hidden():
+            page.click("#open")
+        page.wait_for_selector(".fwhsv-obj[data-id='agate']")
+        assert vis(".fwhsv-x-energy") and vis(".fwhsv-badge")             # remembered
+        page.evaluate("Object.keys(localStorage).filter(k => k.startsWith('fwh-system-view:show:')).forEach(k => localStorage.removeItem(k))")
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        assert errors == []
+        ctx.close()
