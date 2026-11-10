@@ -19,6 +19,9 @@ OBJECTS = ("grid", "agate", "home", "solar", "battery", "circuits", "generator")
 LEGS = ("L1", "L2", "L3", "L1+L2", "L1+L2+L3")
 CIRCUIT_ICONS = ("circuit", "hvac", "water", "ev", "pool", "other")
 FIELD_TYPES = ("text", "choice")
+ENERGY_KEYS = ("grid_import_kwh", "grid_export_kwh", "solar_kwh", "home_kwh",
+               "battery_charge_kwh", "battery_discharge_kwh")
+ALARM_LEVELS = ("warn", "crit")
 
 
 def _num(v: Any) -> bool:
@@ -62,6 +65,32 @@ def _check_gateway(g: Any, path: str) -> list[str]:
             errs.append(f"{path}.circuits[{i}].on: true, false or null")
         if c.get("icon", "circuit") not in CIRCUIT_ICONS:
             errs.append(f"{path}.circuits[{i}].icon: one of {CIRCUIT_ICONS}")
+    en = g.get("energy_today")
+    if en is not None:
+        if not isinstance(en, dict):
+            errs.append(f"{path}.energy_today: an object or null")
+        else:
+            for k, v in en.items():
+                if k not in ENERGY_KEYS:
+                    errs.append(f"{path}.energy_today.{k}: not one of {ENERGY_KEYS}")
+                elif v is not None and not _num(v):
+                    errs.append(f"{path}.energy_today.{k}: a number or null")
+    al = g.get("alarms")
+    if al is not None and not isinstance(al, list):
+        errs.append(f"{path}.alarms: a list or null")
+    for i, a in enumerate(al if isinstance(al, list) else []):
+        p = f"{path}.alarms[{i}]"
+        if not isinstance(a, dict):
+            errs.append(f"{p}: not an object")
+            continue
+        if a.get("target") not in OBJECTS:
+            errs.append(f"{p}.target: one of {OBJECTS}")
+        if not isinstance(a.get("text"), str) or not a.get("text"):
+            errs.append(f"{p}.text: a non-empty string is required")
+        if a.get("level") not in ALARM_LEVELS:
+            errs.append(f"{p}.level: one of {ALARM_LEVELS}")
+        if a.get("unit") is not None and (not isinstance(a["unit"], int) or isinstance(a["unit"], bool)):
+            errs.append(f"{p}.unit: an integer or null")
     for name in g.get("unavailable") or []:
         if name not in OBJECTS:
             errs.append(f"{path}.unavailable: {name!r} is not one of {OBJECTS}")

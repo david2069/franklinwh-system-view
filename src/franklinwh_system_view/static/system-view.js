@@ -44,6 +44,9 @@
   const KEY_START = "fwh-system-view:start";
   const KEY_OPTS = "fwh-system-view:options";   // "1" shown, "0" folded; unset: shown on wide screens
   const NARROW = 760;
+  // Extras the user switches on under Options, each remembered in this browser (all off by default).
+  const EXTRAS = [["vhz", "Voltage & frequency"], ["energy", "Today's energy"], ["flow", "Power on wires"], ["alarms", "Alarms"]];
+  const KEY_SHOW = "fwh-system-view:show:";
 
   // below / above: CSS selectors for the host's top bar and bottom bar (e.g. a phone tab
   // bar). The overlay fits between them, so the host's bars stay visible and usable.
@@ -78,6 +81,8 @@
       '<button type="button" data-z="fit" aria-label="Fit to screen">Fit</button>' +
       '<button type="button" data-z="in" aria-label="Zoom in">+</button></div>' +
       '<button type="button" class="fwhsv-cust" hidden>Customise diagram</button>' +
+      '<div class="fwhsv-show" role="group" aria-label="Show">' + EXTRAS.map(([k, l]) =>
+        '<label><input type="checkbox" data-show="' + k + '"> ' + esc(l) + '</label>').join("") + '</div>' +
       '<label class="fwhsv-start"><input type="checkbox"> Start on ' + esc(opts.title) + '</label></div>' +
       '<button type="button" class="fwhsv-close" aria-label="' + esc(opts.backLabel) + '"><span class="fwhsv-closelbl">' + esc(opts.backLabel) + '</span> ✕</button></div>' +
       '<div class="fwhsv-site" hidden></div>' +
@@ -99,6 +104,16 @@
     dlg = root.querySelector(".fwhsv-dlg");
     custBtn.addEventListener("click", openCustomise);
     startBox.checked = store.get(KEY_START) === "1";
+    root.querySelectorAll("[data-show]").forEach((b) => {
+      const k = b.dataset.show;
+      b.checked = store.get(KEY_SHOW + k) === "1";
+      root.classList.toggle("show-" + k, b.checked);
+      b.addEventListener("change", () => {
+        store.set(KEY_SHOW + k, b.checked ? "1" : null);
+        root.classList.toggle("show-" + k, b.checked);
+        if (sel && scn) { const n = scn.nodes.find((x) => x.id === sel); if (n) showPanel(n); }
+      });
+    });
     startBox.addEventListener("change", () => store.set(KEY_START, startBox.checked ? "1" : null));
     // Zoom, Customise and Start on fold away behind Options: on a phone they took more room
     // than the diagram. Folded by default on narrow screens; the user's choice is kept.
@@ -194,7 +209,10 @@
       } else s += icon("apower", n.x + 24, ry - 24, 48);
       s += `<text class="fwhsv-lbl start" x="${n.x + 92}" y="${ry - 8}">${esc(n.label)}</text>`;
       s += `<text class="fwhsv-st start" x="${n.x + 92}" y="${ry + 16}">${esc(n.status)}${n.value ? " · " + esc(n.value) : ""}</text>`;
-      return s + "</g>";
+      (n.extra || []).forEach((x, i) => {
+        s += `<text class="fwhsv-x fwhsv-x-${esc(x.k)} start" x="${n.x + 92}" y="${ry + 34 + i * 14}">${esc(x.t)}</text>`;
+      });
+      return s + badge(n) + "</g>";
     }
     s += `<rect class="fwhsv-hit" x="${n.x - 6}" y="${n.y - 6}" width="${n.w + 12}" height="${n.foot + 12}" rx="12"/>`;
     if (n.frame) s += `<rect class="fwhsv-frame" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="16"/>`;
@@ -205,7 +223,25 @@
     if (n.value) { ty += 24; s += `<text class="fwhsv-big" x="${cx}" y="${ty}">${esc(n.value)}</text>`; }
     ty += 18; s += `<text class="fwhsv-st" x="${cx}" y="${ty}">${esc(n.status)}</text>`;
     if (n.sub) { ty += 16; s += `<text class="fwhsv-sub" x="${cx}" y="${ty}">${esc(n.sub)}</text>`; }
-    return s + "</g>";
+    (n.extra || []).forEach((x) => { ty += 16; s += `<text class="fwhsv-x fwhsv-x-${esc(x.k)}" x="${cx}" y="${ty}">${esc(x.t)}</text>`; });
+    return s + badge(n) + "</g>";
+  }
+  // An alarm count on the object's top-left corner (wires and their labels arrive on the
+  // right and top); the list is in its details.
+  function badge(n) {
+    const a = n.alarms || [];
+    if (!a.length) return "";
+    const lvl = a.some((x) => x.level === "crit") ? "crit" : "warn", bx = n.x + 4, by = n.y + 4;
+    return `<g class="fwhsv-x fwhsv-x-alarms fwhsv-badge ${lvl}"><circle cx="${bx}" cy="${by}" r="11"/>` +
+      `<text x="${bx}" y="${by + 4}">${a.length}</text></g>`;
+  }
+  // The power on a wire, written by its longest straight run, with an arrow the way it goes.
+  function wireLabel(w) {
+    if (!w.kw || !w.mid) return "";
+    const [mx, my] = w.mid, flat = w.ang === 0 || w.ang === 180;
+    const tx = flat ? mx : mx + 12, ty = flat ? my - 10 : my + 4;
+    return `<g class="fwhsv-x fwhsv-x-flow fwhsv-flowlbl"><path class="fwhsv-arrow" d="M-6 -5 L6 0 L-6 5 Z" transform="translate(${mx},${my}) rotate(${w.ang})"/>` +
+      `<text class="${flat ? "" : "start"}" x="${tx}" y="${ty}">${esc(w.kw)}</text></g>`;
   }
   function draw() {
     if (!data) return;
@@ -235,7 +271,7 @@
     const portrait = root.querySelector(".fwhsv-stage").clientWidth < PORTRAIT_BELOW;
     scn = g.scenes[portrait ? "portrait" : "landscape"];
     const wires = scn.wires.map((w) => `<path class="fwhsv-wire ${w.flow}${w.dc ? " dc" : ""}" d="${w.d}"/>`).join("");
-    svg.innerHTML = wires + scn.nodes.map(nodeSvg).join("");
+    svg.innerHTML = wires + scn.nodes.map(nodeSvg).join("") + scn.wires.map(wireLabel).join("");
     applyView();
     svg.querySelectorAll(".fwhsv-obj").forEach((el) => {
       const n = scn.nodes.find((x) => x.id === el.dataset.id);
@@ -266,7 +302,11 @@
     panel.hidden = false;
     panel.innerHTML = `<button type="button" class="fwhsv-pclose" aria-label="Close details">✕</button>` +
       `<h3>${esc(n.label)}</h3><p>${esc(n.hover)}</p>` +
-      `<dl>${n.rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`;
+      `<dl>${n.rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` +
+      ((n.alarms || []).length && root.classList.contains("show-alarms")
+        ? `<h4>Alarms</h4><ul class="fwhsv-alarms">${n.alarms.map((a) =>
+            `<li class="${a.level === "crit" ? "crit" : "warn"}">${esc(a.text)}${a.code != null ? ` <small>(${esc(a.code)})</small>` : ""}</li>`).join("")}</ul>`
+        : "");
     panel.querySelector(".fwhsv-pclose").addEventListener("click", () => { sel = null; panel.hidden = true; draw(); });
   }
 

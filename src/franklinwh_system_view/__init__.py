@@ -12,7 +12,7 @@ from . import customise
 from .layout import scene, strip
 from .schema import SCHEMA_VERSION, validate
 
-__version__ = "0.2.3"
+__version__ = "0.3.0"
 __all__ = ["SCHEMA_VERSION", "build", "customise", "fixture", "scene", "static_dir", "validate"]
 
 

@@ -8,6 +8,7 @@ the payload reports is drawn; a gateway with no solar has no solar picture.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 #: Below this a flow is drawn idle, so meter noise doesn't animate a wire.
@@ -30,12 +31,19 @@ def _flow(w: Any, *, reverse: bool = False) -> str:
 
 
 def _node(id_, icon, x, y, w, h, label, *, value="", status="", state="ok", frame=True,
-          hover="", rows=None, soc=None, card=False, sub="") -> dict:
-    """``foot`` is the height including the text under the picture; wires leave below it."""
-    foot = h if card else h + 22 + (24 if value else 0) + 18 + (16 if sub else 0) + 8
+          hover="", rows=None, soc=None, card=False, sub="", extra=None, alarms=None) -> dict:
+    """``foot`` is the height including the text under the picture; wires leave below it.
+
+    ``extra`` lines (voltage and frequency, today's energy) are shown only when the user
+    switches them on, so a line is kept free for each under the picture; on a battery card
+    they sit inside the card. ``alarms`` are this object's active alarms.
+    """
+    extra = extra or []
+    foot = h if card else h + 22 + (24 if value else 0) + 18 + (16 if sub else 0) + 16 * len(extra) + 8
     n = {"id": id_, "icon": icon, "x": x, "y": y, "w": w, "h": h, "foot": foot, "label": label,
          "value": value, "status": status, "state": state, "frame": frame,
-         "hover": hover, "rows": rows or [], "soc": soc, "card": card}
+         "hover": hover, "rows": rows or [], "soc": soc, "card": card, "extra": extra,
+         "alarms": alarms or []}
     if sub:
         n["sub"] = sub
     return n
@@ -59,6 +67,29 @@ def _wire(a: dict, b: dict, flow: str, *, dc: bool = False, side_a="c", side_b="
     else:
         d = f"M{x1:g} {y1:g} V{y2:g} H{x2:g}"
     return {"from": a["id"], "to": b["id"], "d": d, "flow": flow, "dc": dc}
+
+
+def _label(wire: dict, w: Any) -> dict:
+    """The power on ``wire`` and where to write it: the middle of its longest straight run,
+    with ``ang`` the direction the power travels there (0 right, 90 down, 180 left, 270 up).
+    Nothing is added for an idle or dead wire, or when the power isn't known."""
+    if wire["flow"] not in ("fwd", "rev") or w is None:
+        return wire
+    pts, x, y = [], 0.0, 0.0
+    for cmd, a, b in re.findall(r"([MHV])(-?[\d.]+)(?: (-?[\d.]+))?", wire["d"]):
+        if cmd == "M":
+            x, y = float(a), float(b)
+        elif cmd == "H":
+            x = float(a)
+        else:
+            y = float(a)
+        pts.append((x, y))
+    (x1, y1), (x2, y2) = max(zip(pts, pts[1:]),
+                             key=lambda s: abs(s[1][0] - s[0][0]) + abs(s[1][1] - s[0][1]))
+    if wire["flow"] == "rev":
+        (x1, y1), (x2, y2) = (x2, y2), (x1, y1)
+    ang = (0 if x2 > x1 else 180) if x1 != x2 else (90 if y2 > y1 else 270)
+    return dict(wire, kw=kw(w), mid=[(x1 + x2) / 2, (y1 + y2) / 2], ang=ang)
 
 
 # ── the objects, independent of arrangement ──────────────────────────────────────
@@ -96,15 +127,20 @@ def _grid(g: dict) -> dict | None:
         rows.append(["Voltage", f"{grid['voltage_v']:.1f} V"])
     if grid.get("freq_hz") is not None:
         rows.append(["Frequency", f"{grid['freq_hz']:.2f} Hz"])
+    vhz = " · ".join(x for x in (
+        f"{grid['voltage_v']:.1f} V" if grid.get("voltage_v") is not None else "",
+        f"{grid['freq_hz']:.2f} Hz" if grid.get("freq_hz") is not None else "") if x)
     if st == "spike":
         return _with_legs({"icon": "gridspike", "label": "Grid", "value": kw(p), "status": "Voltage spike",
                            "state": "warn", "hover": "Your aGate reported a grid voltage spike. The grid is still connected.",
-                           "rows": rows, "flow": _flow(p)}, g)
+                           "rows": rows, "flow": _flow(p), "w": p,
+                           "extra": [{"k": "vhz", "t": vhz}] if vhz else []}, g)
     hover = {"Importing": f"The grid is up. You are importing {kw(p)}.",
              "Exporting": f"The grid is up. You are exporting {kw(p)}.",
              "Idle": "The grid is up. Almost nothing is flowing to or from it right now."}[word]
     out = {"icon": "pylon", "label": "Grid", "value": kw(p), "status": "Connected" if st != "unknown" else "Unknown",
-           "state": "ok" if st != "unknown" else "off", "hover": hover, "rows": rows, "flow": _flow(p)}
+           "state": "ok" if st != "unknown" else "off", "hover": hover, "rows": rows, "flow": _flow(p),
+           "w": p, "extra": [{"k": "vhz", "t": vhz}] if vhz else []}
     return _with_legs(out, g)
 
 
@@ -143,7 +179,7 @@ def _home(g: dict) -> dict | None:
         return None
     p = home.get("power_w")
     return {"icon": "house", "label": "Home", "value": kw(p), "status": "Using", "state": "ok",
-            "hover": f"Your home is using {kw(p)}.", "rows": [["Using now", kw(p)]], "flow": _flow(p)}
+            "hover": f"Your home is using {kw(p)}.", "rows": [["Using now", kw(p)]], "flow": _flow(p), "w": p}
 
 
 def _solars(g: dict) -> list[dict]:
@@ -165,7 +201,7 @@ def _solars(g: dict) -> list[dict]:
                     "value": kw(p) if p is not None else "", "status": status,
                     "state": "ok" if producing else "off", "hover": hover,
                     "rows": [["Now", kw(p)], ["Connected", WHERE.get(s.get("where"), "–")]],
-                    "flow": _flow(p), "dc": s.get("where") == "apower"})
+                    "flow": _flow(p), "w": p, "dc": s.get("where") == "apower"})
     return out
 
 
@@ -187,7 +223,7 @@ def _batteries(g: dict) -> list[dict]:
         return {"id": id_, "icon": "apower", "label": name, "value": kw(p) if word != "Idle" else "",
                 "status": status, "state": state, "soc": soc, "hover": hover,
                 "rows": [["Charge", "–" if soc is None else f"{soc:g} %"], ["Now", status if word == "Idle" or state != "ok" else f"{word} {kw(p)}"]],
-                "flow": "off" if state == "off" else _flow(p, reverse=True)}
+                "flow": "off" if state == "off" else _flow(p, reverse=True), "w": p}
 
     if not units:
         n = bat.get("count")
@@ -223,7 +259,7 @@ def _circuits(g: dict) -> list[dict]:
                     "state": "ok" if on else "off",
                     "hover": f"{name} is {'on' if on else 'off'}." if on is not None else f"{name}: state unknown.",
                     "rows": [["State", "On" if on else "Off" if on is False else "Unknown"]],
-                    "flow": "fwd" if on else "idle"})
+                    "flow": "fwd" if on else "idle", "w": c.get("power_w")})
     return out
 
 
@@ -243,7 +279,7 @@ def _generator(g: dict) -> dict | None:
             "status": "Running" if running else gen.get("status") or "Standby",
             "state": "ok" if running else "off",
             "hover": f"The generator is supplying {kw(p)}." if running else "The generator is on standby.",
-            "rows": [["State", "Running" if running else "Standby"]], "flow": _flow(p)}
+            "rows": [["State", "Running" if running else "Standby"]], "flow": _flow(p), "w": p}
 
 
 # ── the site strip: its name and the weather ─────────────────────────────────────
@@ -289,6 +325,53 @@ def strip(payload: dict) -> dict:
     return out
 
 
+# ── extras: today's energy and alarms, on the objects they are about ──────────────
+
+def _kwh(v: Any) -> str:
+    return f"{v:.1f}"
+
+
+def _energy(g: dict, grid, home, solars, bats) -> None:
+    """Today's kWh as an extra line on each object; a value the bridge didn't send is left
+    out. The solar and battery figures cover the whole gateway, so they go on the first
+    picture."""
+    e = g.get("energy_today") or {}
+
+    def pair(a, b):
+        if e.get(a) is None or e.get(b) is None:
+            return None
+        return f"Today in {_kwh(e[a])} · out {_kwh(e[b])} kWh"
+
+    def add(spec, text):
+        if spec is not None and text:
+            spec.setdefault("extra", []).append({"k": "energy", "t": text})
+
+    # Two short lines under the grid: one long line ran off a phone's left edge.
+    if e.get("grid_import_kwh") is not None and e.get("grid_export_kwh") is not None:
+        add(grid, f"Today in {_kwh(e['grid_import_kwh'])} kWh")
+        add(grid, f"out {_kwh(e['grid_export_kwh'])} kWh")
+    add(home, f"Today {_kwh(e['home_kwh'])} kWh" if e.get("home_kwh") is not None else None)
+    add(solars[0] if solars else None,
+        f"Today {_kwh(e['solar_kwh'])} kWh" if e.get("solar_kwh") is not None else None)
+    add(bats[0] if bats else None, pair("battery_charge_kwh", "battery_discharge_kwh"))
+
+
+def _alarms(g: dict, grid, agate, home, solars, bats, circs, gen) -> None:
+    """Each active alarm on the object it is about; a unit's alarm on that unit's card."""
+    by = {"grid": [grid], "agate": [agate], "home": [home], "solar": solars, "battery": bats,
+          "circuits": circs, "generator": [gen]}
+    for a in g.get("alarms") or []:
+        specs = [x for x in by.get(a["target"], []) if x is not None]
+        if not specs:
+            continue
+        unit = a.get("unit")
+        spec = specs[unit - 1] if isinstance(unit, int) and 1 <= unit <= len(specs) else specs[0]
+        item = {"text": a["text"], "level": a["level"]}
+        if a.get("code") is not None:
+            item["code"] = a["code"]
+        spec.setdefault("alarms", []).append(item)
+
+
 # ── arrangements ──────────────────────────────────────────────────────────────
 
 def _place(spec: dict | None, id_, x, y, w, h, *, frame=True, card=False) -> dict | None:
@@ -297,7 +380,8 @@ def _place(spec: dict | None, id_, x, y, w, h, *, frame=True, card=False) -> dic
     return _node(spec.get("id", id_), spec["icon"], x, y, w, h, spec["label"],
                  value=spec.get("value", ""), status=spec.get("status", ""), state=spec["state"],
                  frame=frame, hover=spec["hover"], rows=spec["rows"], soc=spec.get("soc"),
-                 card=card, sub=spec.get("sub", ""))
+                 card=card, sub=spec.get("sub", ""), extra=spec.get("extra"),
+                 alarms=spec.get("alarms"))
 
 
 def scene(g: dict, orientation: str = "landscape") -> dict:
@@ -306,6 +390,8 @@ def scene(g: dict, orientation: str = "landscape") -> dict:
         raise ValueError(f"orientation: 'landscape' or 'portrait', not {orientation!r}")
     grid, agate, home = _grid(g), _agate(g), _home(g)
     solars, bats, circs, gen = _solars(g), _batteries(g), _circuits(g), _generator(g)
+    _energy(g, grid, home, solars, bats)
+    _alarms(g, grid, agate, home, solars, bats, circs, gen)
     nodes: list[dict] = []
     wires: list[dict] = []
     land = orientation == "landscape"
@@ -326,7 +412,8 @@ def scene(g: dict, orientation: str = "landscape") -> dict:
         H = _place(home, "home", 310, 240, 90, 90, frame=False)
         S = [_place(s, s["id"], 165 + (i - (len(solars) - 1) / 2) * 120, 20, 90, 80, frame=False)
              for i, s in enumerate(solars)]
-        bus = A["y"] + A["foot"] + 12
+        # Below the grid and home text too, so a wire's label never sits on it.
+        bus = max(n["y"] + n["foot"] for n in (A, G, H) if n) + 12
         B = [_place(b, b["id"], 110, bus + 28 + i * 98, 280, 84, card=True) for i, b in enumerate(bats)]
         cy = (B[-1]["y"] + B[-1]["h"] + 46) if B else bus + 40
         C = [_place(c, c.get("id", "generator"), 30 + (i % 3) * 125, cy + (i // 3) * 150, 90, 80)
@@ -338,11 +425,11 @@ def scene(g: dict, orientation: str = "landscape") -> dict:
     nodes.append(A)
     if G:
         nodes.append(G)
-        wires.append(_wire(G, A, grid["flow"], side_a="r", side_b="l"))
+        wires.append(_label(_wire(G, A, grid["flow"], side_a="r", side_b="l"), grid.get("w")))
     if H:
         nodes.append(H)
-        wires.append(_wire(A, H, home["flow"], side_a="t", side_b="b") if land
-                     else _wire(A, H, home["flow"], side_a="r", side_b="l"))
+        wires.append(_label(_wire(A, H, home["flow"], side_a="t", side_b="b") if land
+                            else _wire(A, H, home["flow"], side_a="r", side_b="l"), home.get("w")))
     for k, (spec, n) in enumerate(zip(solars, S)):
         nodes.append(n)
         nx, nb = n["x"] + n["w"] / 2, n["y"] + n["foot"]
@@ -351,7 +438,8 @@ def scene(g: dict, orientation: str = "landscape") -> dict:
             d = f"M{nx:g} {nb:g} V{nb + 16 + k * 6:g} H{ax + aw + 40 + k * 8:g} V{ty:g} H{ax + aw:g}"
         else:       # straight down into the aGate's top
             d = f"M{nx:g} {nb:g} V{nb + 14:g} H{ax + aw / 2 + (k - (len(S) - 1) / 2) * 16:g} V{ay:g}"
-        wires.append({"from": n["id"], "to": A["id"], "flow": spec["flow"], "dc": spec["dc"], "d": d})
+        wires.append(_label({"from": n["id"], "to": A["id"], "flow": spec["flow"], "dc": spec["dc"], "d": d},
+                            spec.get("w")))
     for spec, n in zip(bats, B):
         nodes.append(n)
         my = n["y"] + n["h"] / 2
@@ -359,7 +447,8 @@ def scene(g: dict, orientation: str = "landscape") -> dict:
             d = f"M{ax + aw:g} {amid + 30:g} H{n['x'] - 30:g} V{my:g} H{n['x']:g}"
         else:       # a bus down the left edge, so no wire crosses a card
             d = f"M{ax + aw / 2:g} {abot:g} V{bus:g} H70 V{my:g} H{n['x']:g}"
-        wires.append({"from": A["id"], "to": n["id"], "flow": spec["flow"], "dc": False, "d": d})
+        wires.append(_label({"from": A["id"], "to": n["id"], "flow": spec["flow"], "dc": False, "d": d},
+                            spec.get("w")))
     for spec, n in zip(row, C):
         nodes.append(n)
         flow = spec["flow"] if spec is not gen else ("rev" if spec["flow"] == "fwd" else spec["flow"])
@@ -368,7 +457,8 @@ def scene(g: dict, orientation: str = "landscape") -> dict:
             d = f"M{ax + aw / 2:g} {abot:g} V{ny - 22:g} H{nx:g} V{ny:g}"
         else:       # a bus down the right edge, clear of the battery cards
             d = f"M{ax + aw / 2:g} {abot:g} V{bus:g} H405 V{ny - 18:g} H{nx:g} V{ny:g}"
-        wires.append({"from": A["id"], "to": n["id"], "flow": flow, "dc": False, "d": d})
+        wires.append(_label({"from": A["id"], "to": n["id"], "flow": flow, "dc": False, "d": d},
+                            spec.get("w")))
 
     height = max(n["y"] + n["foot"] for n in nodes) + 24
     return {"orientation": orientation, "width": width, "height": height,

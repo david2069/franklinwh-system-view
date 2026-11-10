@@ -5,4 +5,7 @@
    "home": {"power_w": 1300},
    "battery": {"soc_pct": 62, "power_w": -2900, "count": 2},
    "solar": [{"id": "solar", "where": "agate", "power_w": 4200}],
-   "circuits": [{"id": 1, "name": "Circuit 1", "on": true}, {"id": 2, "name": "Circuit 2", "on": true}, {"id": 3, "name": "Circuit 3", "on": true}]}]}
+   "circuits": [{"id": 1, "name": "Circuit 1", "on": true}, {"id": 2, "name": "Circuit 2", "on": true}, {"id": 3, "name": "Circuit 3", "on": true}],
+   "energy_today": {"grid_import_kwh": 3.2, "grid_export_kwh": 5.1, "solar_kwh": 21.4, "home_kwh": 12.0,
+                    "battery_charge_kwh": 8.1, "battery_discharge_kwh": 6.3},
+   "alarms": [{"target": "agate", "code": 1204, "text": "Grid frequency out of range", "level": "warn"}]}]}
