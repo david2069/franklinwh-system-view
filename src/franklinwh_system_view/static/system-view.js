@@ -54,6 +54,7 @@
   let opts = { endpoint: "/api/system", title: "System view", backLabel: "Standard dashboard", below: null, above: null,
                gateway: null, onGateway: null, gatewayChips: true };
   let root, bar, optBtn, svg, panel, tip, chips, startBox, siteEl, custBtn, dlg, lastFocus, timer, data = null, gwIdx = 0, sel = null;
+  let custGw = null; // the gateway the Customise dialog shows
   let want = null;   // a gateway id to show once it is in the data
   let zoom = 1, panX = 0, panY = 0, scn = null;
 
@@ -346,12 +347,26 @@
       if (!g) groups.push(g = { scope: f.scope, title: f.group || f.scope, items: [] });
       g.items.push(fieldHtml(f, i));
     });
+    // Several gateways: one at a time, from a picker that starts on the one the diagram shows
+    const gwGroups = groups.filter((g) => g.scope !== "site");
+    const shownGw = ((data.gateways || [])[gwIdx] || {}).id;
+    if (!gwGroups.some((g) => g.scope === custGw)) custGw = gwGroups.some((g) => g.scope === shownGw) ? shownGw : (gwGroups[0] || {}).scope;
+    const picker = gwGroups.length > 1
+      ? `<div class="fwhsv-field"><label for="fwhsv-cust-gw">Gateway</label><select id="fwhsv-cust-gw" class="fwhsv-cust-gw">` +
+        gwGroups.map((g) => `<option value="${esc(g.scope)}"${g.scope === custGw ? " selected" : ""}>${esc(g.title)}</option>`).join("") +
+        "</select></div>" : "";
     const form = dlg.querySelector("form");
-    form.innerHTML = `<h3>Customise diagram</h3><p class="fwhsv-intro">${esc(c.intro || "")}</p>` +
-      groups.map((g) => `<fieldset><legend>${esc(g.title)}</legend>${g.items.join("")}</fieldset>`).join("") +
+    form.innerHTML = `<h3>Customise diagram</h3><p class="fwhsv-intro">${esc(c.intro || "")}</p>` + picker +
+      groups.map((g) => `<fieldset data-scope="${esc(g.scope)}"${gwGroups.length > 1 && g.scope !== "site" && g.scope !== custGw ? " hidden" : ""}>` +
+        `<legend>${esc(g.title)}</legend>${g.items.join("")}</fieldset>`).join("") +
       `<p class="fwhsv-result" role="status" hidden></p>` +
       `<div class="fwhsv-actions"><button type="button" class="fwhsv-cancel">Close</button><button type="submit" class="fwhsv-save">Save</button></div>`;
     form.onsubmit = (e) => { e.preventDefault(); saveCustomise(fields); };
+    const pick = form.querySelector(".fwhsv-cust-gw");
+    if (pick) pick.onchange = () => {
+      custGw = pick.value;
+      form.querySelectorAll("fieldset[data-scope]").forEach((fs) => { fs.hidden = fs.dataset.scope !== "site" && fs.dataset.scope !== custGw; });
+    };
     form.querySelector(".fwhsv-cancel").onclick = closeCustomise;
     dlg.hidden = false;
     const first = form.querySelector("input, select");

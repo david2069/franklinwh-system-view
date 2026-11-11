@@ -63,6 +63,9 @@ def save(values: dict):
     store(sv.customise.clean(values, my_payload()))   # ValueError → 400
 ```
 
+With several gateways the dialog shows one at a time, from a **Gateway** picker that starts
+on the gateway the diagram shows.
+
 **Weather.** Put the current Open-Meteo reading in `site.weather` (`code`, `condition`,
 `temp_c`); the page draws it next to the site's name.
 

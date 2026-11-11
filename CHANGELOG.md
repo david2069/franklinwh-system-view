@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1] — 2026-11-12
+
+### Changed
+- **Customise diagram: one gateway at a time** (owner, Direct Connect Bridge). With several
+  gateways, a **Gateway** picker at the top shows one gateway's settings, starting on the one
+  the diagram shows; the site's settings stay above it. Before, every gateway was listed,
+  one under the other.
+
 ## [0.3.0] — 2026-11-11
 
 ### Added

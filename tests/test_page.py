@@ -371,3 +371,26 @@ def test_extras_are_switched_on_one_by_one_and_remembered(browser, base):
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         assert errors == []
         ctx.close()
+
+
+def test_customise_shows_one_gateway_at_a_time_from_a_picker(browser, base):
+    # Owner, 2026-11-12: with several gateways the dialog listed them all, one under the
+    # other; a picker shows one, starting on the gateway the diagram shows.
+    ctx, page, errors = _page(browser, base, "?fixture=two_gateways")
+    page.evaluate("""() => FWHSystemView.mount({endpoint: '/api/system?fixture=two_gateways',
+      gateway: () => 'gw2', gatewayChips: false})""")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    page.click(".fwhsv-cust")
+    pick = page.locator(".fwhsv-form select.fwhsv-cust-gw")
+    assert pick.input_value() == "gw2"
+    shown = lambda: [l.inner_text() for l in page.locator(".fwhsv-form fieldset:visible legend").all()]
+    assert shown() == ["Site", "Garage"]
+    pick.select_option("gw1")
+    assert shown() == ["Site", "House"]
+    page.fill(".fwhsv-form fieldset:visible input >> nth=1", "Main house")   # Site name is nth=0
+    page.click(".fwhsv-save")
+    page.wait_for_selector(".fwhsv-result.ok")
+    assert page.locator(".fwhsv-form select.fwhsv-cust-gw").input_value() == "gw1"   # stays on it
+    assert errors == []
+    ctx.close()
