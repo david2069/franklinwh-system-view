@@ -101,6 +101,7 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 .fwhsv-intro{ margin: 0 0 12px; color: var(--sv-muted); font-size: .88rem; }
 .fwhsv-form fieldset{ border: 1px solid var(--sv-line); border-radius: 10px; margin: 0 0 12px; padding: 10px 12px; }
 .fwhsv-form legend{ padding: 0 6px; font-weight: 700; }
+.fwhsv-form fieldset[hidden]{ display: none; }
 .fwhsv-field{ display: grid; grid-template-columns: 170px 1fr; gap: 4px 12px; align-items: center; margin: 6px 0; }
 .fwhsv-field label{ font-size: .88rem; }
 .fwhsv-field input, .fwhsv-field select{ font: inherit; font-size: .9rem; color: var(--sv-ink); background: var(--sv-bg); border: 1px solid var(--sv-line); border-radius: 8px; padding: 6px 8px; min-height: 34px; min-width: 0; }
