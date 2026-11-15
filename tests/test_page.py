@@ -467,6 +467,9 @@ def test_a_phone_gets_the_site_diagram_in_portrait(browser, base):
     page.wait_for_selector(".fwhsv-obj[data-id='gw1/agate']")
     assert page.get_attribute(".fwhsv-svg", "viewBox").split()[2] == "420"
     assert page.locator(".fwhsv-obj.act").get_attribute("data-id") == "gw1/agate"
+    # as wide as the screen and scrolled, not shrunk to fit three rows into its height
+    stage, svg = page.locator(".fwhsv-stage").bounding_box(), page.locator(".fwhsv-svg").bounding_box()
+    assert svg["width"] > stage["width"] - 24 and svg["height"] > stage["height"]
     _options(page)
     page.uncheck("[data-show='circuits']")                           # Smart circuits off
     assert page.locator(".fwhsv-obj[data-id='gw2/sc1']").count() == 0

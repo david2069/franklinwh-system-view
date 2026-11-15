@@ -289,6 +289,12 @@
     scn = (!root.classList.contains("show-circuits") && scenes[o + "_no_circuits"]) || scenes[o];
     const wires = scn.wires.map((w) => `<path class="fwhsv-wire ${w.flow}${w.dc ? " dc" : ""}${w.gw && w.gw === g.id && w.to === w.gw + "/agate" ? " act" : ""}" d="${w.d}"/>`).join("");
     svg.innerHTML = wires + scn.nodes.map((n) => nodeSvg(n, g.id)).join("") + scn.wires.map(wireLabel).join("");
+    // A site's rows on a phone: as wide as the screen, scrolled down, rather than shrunk to
+    // fit its height (three rows drew every picture a third of its size).
+    const stage = root.querySelector(".fwhsv-stage"), sw = stage.clientWidth - 16;
+    const tall = grp && portrait && sw * scn.height / scn.width > stage.clientHeight - 16;
+    svg.style.height = tall ? Math.round(sw * scn.height / scn.width) + "px" : "";
+    svg.style.touchAction = tall ? "pan-y" : "";
     applyView();
     svg.querySelectorAll(".fwhsv-obj").forEach((el) => {
       const n = scn.nodes.find((x) => x.id === el.dataset.id);
