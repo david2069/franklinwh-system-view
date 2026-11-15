@@ -9,10 +9,10 @@ from importlib import resources
 from pathlib import Path
 
 from . import customise
-from .layout import _circuits, scene, strip
+from .layout import _circuits, scene, site_groups, site_scene, strip
 from .schema import SCHEMA_VERSION, validate
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 __all__ = ["SCHEMA_VERSION", "build", "customise", "fixture", "scene", "static_dir", "validate"]
 
 
@@ -22,7 +22,8 @@ def static_dir() -> Path:
 
 
 def build(payload: dict) -> dict:
-    """``payload`` plus both scenes for every gateway, ready to send to the page.
+    """``payload`` plus both scenes for every gateway, ready to send to the page; and, for
+    each site that two or more gateways name, ``site_groups`` with its own scenes.
 
     Raises ``ValueError`` listing every problem when the payload is invalid.
     """
@@ -32,6 +33,11 @@ def build(payload: dict) -> dict:
     out = dict(payload)
     out["strip"] = strip(payload)
     out["gateways"] = [dict(g, scenes=_scenes(g)) for g in payload["gateways"]]
+    groups = site_groups(payload)
+    if groups:      # a site with two or more gateways: one diagram for all of them
+        by = {g["id"]: g for g in payload["gateways"]}
+        out["site_groups"] = [dict(s, scenes=_site_scenes([by[i] for i in s["gateway_ids"]]))
+                              for s in groups]
     return out
 
 
@@ -43,6 +49,17 @@ def _scenes(g: dict) -> dict:
         out[o] = scene(g, o)
         if _circuits(g):
             out[o + "_no_circuits"] = scene(g, o, circuits=False)
+    return out
+
+
+def _site_scenes(members: list[dict]) -> dict:
+    """The site diagram in both orientations, and each without the smart circuits when any
+    of its gateways has them."""
+    out = {}
+    for o in ("landscape", "portrait"):
+        out[o] = site_scene(members, o)
+        if any(_circuits(g) for g in members):
+            out[o + "_no_circuits"] = site_scene(members, o, circuits=False)
     return out
 
 

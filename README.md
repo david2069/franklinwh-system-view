@@ -68,6 +68,14 @@ def save(values: dict):
 With several gateways the dialog shows one at a time, from a **Gateway** picker that starts
 on the gateway the diagram shows.
 
+**A site with several gateways.** Give each gateway its `site` (`id`, `name`, and the
+service `meter` it is fed through when you know it: `id`, `name`, `ac` `single`/`split`/`three`,
+`rated_amps`). Gateways that name the same site are drawn in one diagram: the grid and the
+service meter on the left, then one row per aGate with its batteries, solar, smart circuits
+and home. The shown gateway is highlighted, and tapping another aGate shows that gateway
+(and calls `onGateway`). `build()` puts these diagrams in `site_groups`; a gateway alone on
+its site is drawn as before.
+
 **Weather.** Put the current Open-Meteo reading in `site.weather` (`code`, `condition`,
 `temp_c`); the page draws it next to the site's name.
 

@@ -465,3 +465,231 @@ def scene(g: dict, orientation: str = "landscape", *, circuits: bool = True) -> 
     height = max(n["y"] + n["foot"] for n in nodes) + 24
     return {"orientation": orientation, "width": width, "height": height,
             "nodes": nodes, "wires": wires}
+
+
+# ── a site with several gateways: one diagram for all of them (#662) ─────────────
+#
+# After board E of the owner's design: the grid and the service meter on the left, each
+# aGate fed from the meter by its own line, one row per aGate; under the aGate its
+# batteries, to its right its solar, generator and smart circuits, then its home. Each
+# row's node ids are prefixed with the gateway's id ("gw2/agate"), and each row's aGate
+# carries ``pick`` (its gateway's id) so the page can highlight the shown gateway and select
+# another one on a tap.
+
+def site_groups(payload: dict) -> list[dict]:
+    """The sites two or more gateways name, in payload order: ``id``, ``name`` and the
+    gateways' ids. A site with one gateway is not a group: it is drawn as before."""
+    by: dict[str, dict] = {}
+    for g in payload.get("gateways") or []:
+        s = g.get("site")
+        if not s:
+            continue
+        grp = by.setdefault(s["id"], {"id": s["id"], "name": s.get("name") or "", "gateway_ids": []})
+        grp["gateway_ids"].append(g["id"])
+    return [x for x in by.values() if len(x["gateway_ids"]) >= 2]
+
+
+def _rating(m: dict) -> str:
+    amps, ac = m.get("rated_amps"), m.get("ac")
+    if amps is None:
+        return {"three": "3-phase", "split": "Split-phase", "single": "Single-phase"}.get(ac, "")
+    if ac == "three":
+        return f"3 × {amps:g} A"
+    return f"{amps:g} A" + {"split": " · split-phase", "single": " · single-phase"}.get(ac, "")
+
+
+def _meter(members: list[dict]) -> dict | None:
+    """The service meter, drawn only when every gateway names the same one."""
+    ms = [(g.get("site") or {}).get("meter") for g in members]
+    if not all(ms) or len({m["id"] for m in ms}) != 1:
+        return None
+    m = ms[0]
+    name, rating = m.get("name") or "", _rating(m)
+    rows = [r for r in (["Meter", name], ["Supply", rating]) if r[1]]
+    return {"icon": "meter", "label": "Service meter", "value": "", "status": rating, "sub": name,
+            "state": "ok", "rows": rows,
+            "hover": f"The site's service meter{' (' + name + ')' if name else ''}. "
+                     f"Each of the {len(members)} aGates is fed through it."}
+
+
+def _site_grid(members: list[dict], specs: list[dict | None]) -> dict | None:
+    """One grid for the site: the sum of what each aGate imports (unknown when one is), its
+    state from theirs, and each aGate's own figure in the details."""
+    if all(s is None for s in specs):
+        return None
+    names = [g.get("name") or g["id"] for g in members]
+    out_at = [n for n, s in zip(names, specs) if s and s["status"] == "Outage"]
+    total: float | None = 0.0
+    for s in specs:
+        if s is None or s["status"] == "Not available here" or (s["status"] != "Outage" and s.get("w") is None):
+            total = None
+            break
+        if s["status"] != "Outage":
+            total += s["w"]
+    rows: list[list[str]] = []
+    if len(out_at) == len(specs):
+        spec = {"icon": "gridout", "status": "Outage", "state": "crit", "flow": "off", "value": kw(0),
+                "hover": "The grid is down. Your batteries are powering the backed-up circuits."}
+    else:
+        word = ("Importing" if total is not None and total >= FLOW_W else
+                "Exporting" if total is not None and total <= -FLOW_W else "Idle")
+        if out_at:
+            status, state = f"Outage at {', '.join(out_at)}", "warn"
+            hover = f"The grid is down at {', '.join(out_at)}; the other aGates are still connected."
+        elif any(s and s["status"] == "Voltage spike" for s in specs):
+            status, state = "Voltage spike", "warn"
+            hover = "An aGate reported a grid voltage spike. The grid is still connected."
+        elif all(s is None or s["status"] in ("Unknown", "Not available here") for s in specs):
+            status, state, hover = "Unknown", "off", "The bridge can't tell whether the grid is up."
+        else:
+            status, state = "Connected", "ok"
+            hover = {"Importing": f"The grid is up. The site is importing {kw(total)}.",
+                     "Exporting": f"The grid is up. The site is exporting {kw(total)}.",
+                     "Idle": "The grid is up. Almost nothing is flowing to or from it right now."}[word]
+        if total is None:
+            hover += " Not every aGate reports its grid power, so the total isn't known."
+        spec = {"icon": "gridspike" if status == "Voltage spike" else "pylon", "status": status,
+                "state": state, "flow": _flow(total), "w": total, "value": kw(total), "hover": hover}
+        rows.append(["Right now", f"{word} {kw(total)}" if word != "Idle" else "Idle"])
+    rows = [["State", spec["status"]]] + rows
+    for n, s in zip(names, specs):
+        if s is None:
+            continue
+        r = dict(s["rows"]).get("Right now")
+        rows.append([n, r if r and s["status"] not in ("Outage", "Unknown") else s["status"]])
+    spec.update(label="Grid", rows=rows)
+    return spec
+
+
+def _site_energy(members: list[dict], grid: dict | None) -> None:
+    """Today's grid kWh for the site: every aGate's sum, when every one sends both."""
+    es = [g.get("energy_today") or {} for g in members]
+    if grid is None or not all(e.get(k) is not None for e in es for k in ("grid_import_kwh", "grid_export_kwh")):
+        return
+    grid.setdefault("extra", []).append(
+        {"k": "energy", "t": f"Today in {_kwh(sum(e['grid_import_kwh'] for e in es))} kWh"})
+    grid["extra"].append({"k": "energy", "t": f"out {_kwh(sum(e['grid_export_kwh'] for e in es))} kWh"})
+
+
+def _row_specs(g: dict, circuits: bool) -> dict:
+    """One aGate's pictures, as in its own scene; its grid only for its line and alarms."""
+    grid, agate, home = _grid(g), _agate(g), _home(g)
+    solars, bats, gen = _solars(g), _batteries(g), _generator(g)
+    circs = _circuits(g) if circuits else []
+    if g.get("legs"):
+        agate["label"] = f"{agate['label']} · {g['legs'].replace('+', ' + ')}"
+    _energy(g, None, home, solars, bats)
+    _alarms(g, grid, agate, home, solars, bats, circs, gen)
+    sources = solars + ([gen] if gen else [])
+    return {"grid": grid, "agate": agate, "bats": bats, "sources": sources,
+            "loads": circs + ([home] if home else []), "gen": gen}
+
+
+def site_scene(members: list[dict], orientation: str = "landscape", *, circuits: bool = True) -> dict:
+    """Nodes and wires for every gateway of one site, laid out for ``orientation``."""
+    if orientation not in ("landscape", "portrait"):
+        raise ValueError(f"orientation: 'landscape' or 'portrait', not {orientation!r}")
+    land = orientation == "landscape"
+    rows = [_row_specs(g, circuits) for g in members]
+    grid = _site_grid(members, [r["grid"] for r in rows])
+    if grid is not None:
+        for g, r in zip(members, rows):
+            for a in (r["grid"] or {}).get("alarms") or []:
+                grid.setdefault("alarms", []).append(dict(a, text=f"{g.get('name') or g['id']}: {a['text']}"))
+    _site_energy(members, grid)
+    meter = _meter(members)
+
+    if land:
+        AX, AW, BX, BW, BH, BBUS = 400, 130, 360, 230, 80, 610
+        EX, EW, EH, EPITCH, EPER, EBUS = 660, 80, 80, 110, 4, 635
+    else:
+        AX, AW, BX, BW, BH, BBUS = 170, 110, 150, 252, 78, 136
+        EX, EW, EH, EPITCH, EPER, EBUS = 136, 68, 70, 92, 3, 410
+    nodes: list[dict] = []
+    wires: list[dict] = []
+    agates: list[dict] = []
+    T = 30 if land else 20
+    for g, r in zip(members, rows):
+        gid = g["id"]
+
+        def put(spec, id_, x, y, w, h, **kw_):
+            n = _place(spec, id_, x, y, w, h, **kw_)
+            n["id"], n["gw"] = f"{gid}/{n['id']}", gid
+            nodes.append(n)
+            return n
+
+        A = put(r["agate"], "agate", AX, T, AW, AW)
+        A["pick"] = gid
+        agates.append(A)
+        ax, ay, amid, abot = A["x"], A["y"], A["y"] + A["h"] / 2, A["y"] + A["foot"]
+        bottom = abot
+        # batteries under the aGate
+        for k, spec in enumerate(r["bats"]):
+            n = put(spec, spec["id"], BX, abot + 24 + k * (BH + 12), BW, BH, card=True)
+            my = n["y"] + n["h"] / 2
+            if land:    # from the aGate's right side, down a bus right of the cards
+                d = f"M{ax + AW:g} {amid + 30:g} H{BBUS:g} V{my:g} H{n['x'] + n['w']:g}"
+            else:       # from under the aGate, down a bus left of the cards
+                d = f"M{ax + AW / 2:g} {abot:g} V{abot + 12:g} H{BBUS:g} V{my:g} H{n['x']:g}"
+            wires.append(_label({"from": A["id"], "to": n["id"], "flow": spec["flow"], "dc": False,
+                                 "d": d, "gw": gid}, spec.get("w")))
+            bottom = n["y"] + n["h"]
+        # solar and generator, then the smart circuits and the home: beside the aGate in
+        # landscape, under the batteries on a phone
+        row = [(s, True) for s in r["sources"]] + [(s, False) for s in r["loads"]]
+        y = T + 24 if land else bottom + 46
+        line: list[dict] = []
+        for i, (spec, source) in enumerate(row):
+            if i and i % EPER == 0:
+                y = max(n["y"] + n["foot"] for n in line) + 46
+                line = []
+            n = put(spec, spec.get("id", "generator" if spec is r["gen"] else "home"),
+                    EX + (i % EPER) * EPITCH, y, EW, EH, frame=spec["icon"] not in ("solar", "house"))
+            line.append(n)
+            nx, ny = n["x"] + n["w"] / 2, n["y"]
+            start = f"M{ax + AW:g} {ay + 24:g}" if land else f"M{ax + AW:g} {amid:g}"
+            d = f"{start} H{EBUS:g} V{ny - 18:g} H{nx:g} V{ny:g}"
+            flow = spec["flow"]
+            if source and flow in ("fwd", "rev"):      # power comes into the aGate
+                flow = "rev" if flow == "fwd" else "fwd"
+            wires.append(_label({"from": A["id"], "to": n["id"], "flow": flow,
+                                 "dc": bool(spec.get("dc")), "d": d, "gw": gid}, spec.get("w")))
+            bottom = max(bottom, n["y"] + n["foot"])
+        T = bottom + (60 if land else 50)
+
+    # the grid and the meter on the left, level with the middle of the rows
+    mids = [a["y"] + a["h"] / 2 for a in agates]
+    cy = (mids[0] + mids[-1]) / 2
+    if land:
+        G = _place(grid, "grid", 30, cy - 45, 90, 90, frame=False)
+        M = _place(meter, "meter", 170, cy - 50, 100, 100)
+        riser0, step = 300, 14
+    else:
+        G = _place(grid, "grid", 12, 20, 76, 76, frame=False)
+        M = _place(meter, "meter", 12, (G["y"] + G["foot"] + 30) if G else 20, 76, 76)
+        riser0, step = 104, 8
+    feed = M or G
+    if G:
+        nodes.append(G)
+    if M:
+        nodes.append(M)
+        if G:
+            wires.append(_label(_wire(G, M, grid["flow"], side_a="r" if land else "b",
+                                      side_b="l" if land else "t"), grid.get("w")))
+    if feed:
+        fx = feed["x"] + feed["w"]
+        fmid = feed["y"] + feed["h"] / 2
+        n = len(agates)
+        for i, (A, r) in enumerate(zip(agates, rows)):
+            spec = r["grid"]
+            flow = "idle" if spec is None else spec["flow"]
+            y0 = fmid + (i - (n - 1) / 2) * 10
+            amid = A["y"] + A["h"] / 2
+            d = f"M{fx:g} {y0:g} H{riser0 + i * step:g} V{amid:g} H{A['x']:g}"
+            wires.append(_label({"from": feed["id"], "to": A["id"], "flow": flow, "dc": False, "d": d,
+                                 "gw": A["gw"]}, None if spec is None else spec.get("w")))
+
+    width = 420 if not land else max(1000, max(n["x"] + n["w"] for n in nodes) + 30)
+    height = max(n["y"] + n["foot"] for n in nodes) + 24
+    return {"orientation": orientation, "width": width, "height": height,
+            "nodes": nodes, "wires": wires}
