@@ -429,3 +429,50 @@ def test_smart_circuits_can_be_hidden_and_it_is_remembered(browser, base):
     assert page.locator(".fwhsv-obj[data-id^='sc']").count() == 0
     page.evaluate("localStorage.removeItem('fwh-system-view:show:circuits')")
     ctx.close()
+
+
+def test_a_site_with_several_gateways_is_one_diagram(browser, base):
+    """Direct Connect Bridge #662: every gateway of a site in one diagram, the shown one
+    highlighted; tapping another aGate shows that gateway and tells the host."""
+    q = "?fixture=three_gateway_site"
+    ctx, page, errors = _page(browser, base, q)
+    page.evaluate("""() => { window.picked = []; FWHSystemView.mount({endpoint: '/api/system%s',
+      gateway: () => 'gw2', gatewayChips: false, onGateway: (id) => window.picked.push(id)}); }""" % q)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='gw2/agate']")
+    assert page.locator(".fwhsv-obj.pick").count() == 3
+    assert page.locator(".fwhsv-obj[data-id='meter']").count() == 1
+    assert page.locator(".fwhsv-obj.act").get_attribute("data-id") == "gw2/agate"
+    assert page.locator(".fwhsv-wire.act").count() == 1
+    assert page.locator(".fwhsv-site strong").inner_text().startswith("Home")
+    page.click(".fwhsv-obj[data-id='gw3/agate']")                    # another aGate
+    assert page.evaluate("window.picked") == ["gw3"]
+    assert page.locator(".fwhsv-obj.act").get_attribute("data-id") == "gw3/agate"
+    assert page.locator(".fwhsv-panel").is_hidden()
+    page.click(".fwhsv-obj[data-id='gw3/agate']")                    # the shown one: its details
+    assert "aGate 3" in page.locator(".fwhsv-panel").inner_text()
+    assert page.evaluate("window.picked") == ["gw3"]
+    page.evaluate("FWHSystemView.showGateway('shed')")               # alone on its site: as before
+    page.wait_for_selector(".fwhsv-obj[data-id='agate']")
+    assert page.locator(".fwhsv-obj.pick").count() == 0
+    assert errors == []
+    ctx.close()
+
+
+def test_a_phone_gets_the_site_diagram_in_portrait(browser, base):
+    q = "?fixture=three_gateway_site"
+    ctx, page, errors = _page(browser, base, q, width=390, height=844)
+    page.evaluate("FWHSystemView.mount({endpoint: '/api/system%s', gatewayChips: false})" % q)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='gw1/agate']")
+    assert page.get_attribute(".fwhsv-svg", "viewBox").split()[2] == "420"
+    assert page.locator(".fwhsv-obj.act").get_attribute("data-id") == "gw1/agate"
+    # as wide as the screen and scrolled, not shrunk to fit three rows into its height
+    stage, svg = page.locator(".fwhsv-stage").bounding_box(), page.locator(".fwhsv-svg").bounding_box()
+    assert svg["width"] > stage["width"] - 24 and svg["height"] > stage["height"]
+    _options(page)
+    page.uncheck("[data-show='circuits']")                           # Smart circuits off
+    assert page.locator(".fwhsv-obj[data-id='gw2/sc1']").count() == 0
+    page.check("[data-show='circuits']")
+    assert errors == []
+    ctx.close()

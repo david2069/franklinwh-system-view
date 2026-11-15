@@ -2,7 +2,7 @@
 .fwhsv{
   --sv-bg: #121924; --sv-panel: #1a2331; --sv-tile: #152018;
   --sv-ink: #e4e9f0; --sv-muted: #97a3b4; --sv-line: #3a4658;
-  --sv-ok: #4fd286; --sv-warn: #f0a83a; --sv-crit: #f07067; --sv-off: #7d889a;
+  --sv-ok: #4fd286; --sv-warn: #f0a83a; --sv-crit: #f07067; --sv-off: #7d889a; --sv-act: #22d3ee;
   /* Above the host's page chrome, below its dialogs, so a host modal (a disclaimer, a
      confirmation) still shows. Hosts can override with --fwhsv-z. */
   position: fixed; inset: 0; z-index: var(--fwhsv-z, 45); display: flex; flex-direction: column;
@@ -13,11 +13,11 @@
 html[data-theme="light"] .fwhsv{
   --sv-bg: #f3f5f7; --sv-panel: #ffffff; --sv-tile: #e8f3ec;
   --sv-ink: #18202b; --sv-muted: #5b6676; --sv-line: #cfd6df;
-  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; color-scheme: light; }
+  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; --sv-act: #0e7490; color-scheme: light; }
 @media (prefers-color-scheme: light){ html:not([data-theme]) .fwhsv{
   --sv-bg: #f3f5f7; --sv-panel: #ffffff; --sv-tile: #e8f3ec;
   --sv-ink: #18202b; --sv-muted: #5b6676; --sv-line: #cfd6df;
-  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; color-scheme: light; } }
+  --sv-ok: #16894c; --sv-warn: #b56a00; --sv-crit: #c23b32; --sv-off: #8a94a3; --sv-act: #0e7490; color-scheme: light; } }
 .fwhsv[hidden]{ display: none !important; }
 html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 .fwhsv-bar{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 16px; border-bottom: 1px solid var(--sv-line); }
@@ -89,6 +89,12 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 @keyframes fwhsv-f{ to{ stroke-dashoffset: -13; } }
 @keyframes fwhsv-r{ to{ stroke-dashoffset: 13; } }
 @media (prefers-reduced-motion: reduce){ .fwhsv-wire.fwd, .fwhsv-wire.rev{ animation: none; } }
+/* A site with several gateways: the shown gateway's aGate, its name and its line in cyan
+   (as the FranklinWH emulator draws its active gateway); amber and red still mean state. */
+.fwhsv-obj.act .fwhsv-frame{ stroke: var(--sv-act); stroke-width: 4.5; }
+.fwhsv-obj.act.s-warn .fwhsv-frame{ stroke: var(--sv-warn); } .fwhsv-obj.act.s-crit .fwhsv-frame{ stroke: var(--sv-crit); }
+.fwhsv-obj.act .fwhsv-lbl{ fill: var(--sv-act); font-weight: 700; }
+.fwhsv-wire.act{ stroke: var(--sv-act); }
 /* site strip */
 .fwhsv-site{ display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; padding: 8px 16px 0; font-size: .95rem; }
 .fwhsv-site[hidden]{ display: none; }

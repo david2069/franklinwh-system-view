@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0] — 2026-11-16
+
+### Added
+- **One diagram for a site with several gateways** (owner, Direct Connect Bridge #662), laid
+  out after board E of the owner's design, as the FranklinWH emulator draws a grouped site.
+  A gateway may name its site in a new optional `site` field (`id`, `name`, and the service
+  `meter` it is fed through: `id`, `name`, `ac` `single`/`split`/`three`, `rated_amps`). When
+  two or more gateways name the same site, `build()` adds `site_groups`: each with its
+  `gateway_ids` and its own scenes (landscape, portrait and both without the smart
+  circuits). The grid and the service meter are on the left, then one row per aGate fed by
+  its own line: its batteries under it, its solar, generator, smart circuits and home to the
+  right. The grid shows the site's total (unknown when one aGate's is) and each aGate's
+  figure in its details; the meter is drawn only when every gateway names the same one.
+- The page draws the site's diagram whenever the shown gateway belongs to such a site, with
+  that gateway's aGate, name and line in cyan, and the site's name in the strip. Tapping
+  another aGate shows that gateway and calls `onGateway`, so the host's picker follows.
+  On a phone the site's diagram is as wide as the screen and scrolls down. A gateway alone
+  on its site, or with no `site`, is drawn as before.
+
 ## [0.3.2] — 2026-11-16
 
 ### Changed

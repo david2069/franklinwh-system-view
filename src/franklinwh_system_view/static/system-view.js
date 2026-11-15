@@ -7,6 +7,8 @@
  * FWHSystemView.showGateway(id) when its picker changes; with gatewayChips: false the overlay
  * leaves its own gateway chips out and follows the host's picker only. The layout arrives precomputed (franklinwh_system_view.layout); this file only
  * draws it, and handles zoom, hover, the detail panel and opening/closing.
+ * A gateway that shares its site with others is drawn in the site's diagram (site_groups),
+ * the shown gateway highlighted; tapping another aGate there shows that gateway instead.
  */
 (function () {
   "use strict";
@@ -21,6 +23,7 @@
     apower: '<rect x="12" y="4" width="24" height="40" rx="5"/><path d="M12 14 H36 M12 34 H36"/><path d="M25 18 L21 25 H27 L23 31"/>',
     toggle: '<rect x="5" y="15" width="38" height="18" rx="9"/><circle class="f" cx="34" cy="24" r="5.5"/>',
     toggleoff: '<rect x="5" y="15" width="38" height="18" rx="9"/><circle cx="14" cy="24" r="5"/>',
+    meter: '<rect x="9" y="5" width="30" height="38" rx="4"/><circle cx="24" cy="19" r="8"/><path d="M24 19 L28.5 14.5 M15 34 H33"/>',
     gen: '<rect x="5" y="10" width="38" height="26" rx="3"/><path d="M26 14 L19 24 H25 L22 32 L29 22 H23 Z"/><circle cx="13" cy="40" r="3"/><circle cx="35" cy="40" r="3"/>',
     // smart-circuit appliances (the user's choice in Customise diagram)
     hvac: '<rect x="5" y="10" width="38" height="20" rx="3"/><path d="M10 24 H38 M14 36 L12 42 M24 36 V42 M34 36 L36 42"/>',
@@ -115,7 +118,7 @@
       b.addEventListener("change", () => {
         store.set(KEY_SHOW + k, SHOWN[k] ? (b.checked ? null : "0") : (b.checked ? "1" : null));
         root.classList.toggle("show-" + k, b.checked);
-        if (k === "circuits") { if (sel && /^(sc\d+|circuits)$/.test(sel)) sel = null; draw(); return; }
+        if (k === "circuits") { if (sel && /(^|\/)(sc\d+|circuits)$/.test(sel)) sel = null; draw(); return; }
         if (sel && scn) { const n = scn.nodes.find((x) => x.id === sel); if (n) showPanel(n); }
       });
     });
@@ -205,8 +208,9 @@
   function icon(k, x, y, s) {
     return `<g transform="translate(${x},${y}) scale(${s / 48})"><g class="fwhsv-ic">${IC[k] || ""}</g></g>`;
   }
-  function nodeSvg(n) {
-    const cx = n.x + n.w / 2, cls = `fwhsv-obj s-${n.state}` + (n.frame ? "" : " noframe") + (sel === n.id ? " sel" : "");
+  function nodeSvg(n, shown) {
+    const cx = n.x + n.w / 2, cls = `fwhsv-obj s-${n.state}` + (n.frame ? "" : " noframe") + (sel === n.id ? " sel" : "") +
+      (n.pick ? " pick" + (n.pick === shown ? " act" : "") : "");
     let s = `<g class="${cls}" tabindex="0" role="button" data-id="${esc(n.id)}" aria-label="${esc(n.label)}: ${esc(n.hover)}">`;
     if (n.card) {      // battery card
       const r = 28, c = 2 * Math.PI * r, f = c * (n.soc || 0) / 100, ry = n.y + n.h / 2;
@@ -261,7 +265,10 @@
       if (i >= 0 && i !== gwIdx) { gwIdx = i; sel = null; zoom = 1; }
       want = null;
     }
-    drawStrip();
+    const g = gws.length ? gws[Math.min(gwIdx, gws.length - 1)] : null;
+    // A site with several gateways is drawn whole, the shown gateway highlighted.
+    const grp = g && (data.site_groups || []).find((s) => s.gateway_ids.indexOf(g.id) >= 0);
+    drawStrip(grp);
     custBtn.hidden = !data.customise;
     chips.hidden = !opts.gatewayChips || gws.length < 2;
     chips.innerHTML = !chips.hidden ? gws.map((g, i) =>
@@ -276,16 +283,29 @@
       return;
     }
     empty.hidden = true;
-    const g = gws[Math.min(gwIdx, gws.length - 1)];
+    const scenes = grp ? grp.scenes : g.scenes;
     const portrait = root.querySelector(".fwhsv-stage").clientWidth < PORTRAIT_BELOW;
     const o = portrait ? "portrait" : "landscape";
-    scn = (!root.classList.contains("show-circuits") && g.scenes[o + "_no_circuits"]) || g.scenes[o];
-    const wires = scn.wires.map((w) => `<path class="fwhsv-wire ${w.flow}${w.dc ? " dc" : ""}" d="${w.d}"/>`).join("");
-    svg.innerHTML = wires + scn.nodes.map(nodeSvg).join("") + scn.wires.map(wireLabel).join("");
+    scn = (!root.classList.contains("show-circuits") && scenes[o + "_no_circuits"]) || scenes[o];
+    const wires = scn.wires.map((w) => `<path class="fwhsv-wire ${w.flow}${w.dc ? " dc" : ""}${w.gw && w.gw === g.id && w.to === w.gw + "/agate" ? " act" : ""}" d="${w.d}"/>`).join("");
+    svg.innerHTML = wires + scn.nodes.map((n) => nodeSvg(n, g.id)).join("") + scn.wires.map(wireLabel).join("");
+    // A site's rows on a phone: as wide as the screen, scrolled down, rather than shrunk to
+    // fit its height (three rows drew every picture a third of its size).
+    const stage = root.querySelector(".fwhsv-stage"), sw = stage.clientWidth - 16;
+    const tall = grp && portrait && sw * scn.height / scn.width > stage.clientHeight - 16;
+    svg.style.height = tall ? Math.round(sw * scn.height / scn.width) + "px" : "";
+    svg.style.touchAction = tall ? "pan-y" : "";
     applyView();
     svg.querySelectorAll(".fwhsv-obj").forEach((el) => {
       const n = scn.nodes.find((x) => x.id === el.dataset.id);
-      const pick = () => { sel = n.id; showPanel(n); draw(); };
+      const pick = () => {
+        if (n.pick && n.pick !== g.id) {          // another aGate of this site: show that gateway
+          const i = gws.findIndex((x) => x.id === n.pick);
+          if (i >= 0) { gwIdx = i; sel = null; panel.hidden = true; draw(); if (opts.onGateway) opts.onGateway(n.pick); }
+          return;
+        }
+        sel = n.id; showPanel(n); draw();
+      };
       el.addEventListener("click", pick);
       el.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
       // No hover tip for a touch: the tap opens the details, which say the same, and a
@@ -321,11 +341,12 @@
   }
 
   /* ── site strip: name and weather ── */
-  function drawStrip() {
+  function drawStrip(grp) {
     const st = data.strip || {};
-    if (!st.name && !st.weather) { siteEl.hidden = true; return; }
+    const name = [grp && grp.name, st.name].filter(Boolean).join(" · ");
+    if (!name && !st.weather) { siteEl.hidden = true; return; }
     siteEl.hidden = false;
-    let h = st.name ? `<strong>${esc(st.name)}</strong>` : "";
+    let h = name ? `<strong>${esc(name)}</strong>` : "";
     if (st.weather) {
       h += `<span class="fwhsv-wx" tabindex="0" title="${esc(st.weather.hover)}"><svg viewBox="0 0 48 48" aria-hidden="true"><g class="fwhsv-ic">${IC[st.weather.icon] || ""}</g></svg>${esc(st.weather.text)}</span>`;
     }

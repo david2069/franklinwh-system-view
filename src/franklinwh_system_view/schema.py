@@ -1,5 +1,9 @@
 """The payload a bridge hands the System view: one site, its gateways and what each reads.
 
+A gateway may name the site it belongs to (``site``: ``id``, ``name`` and, when the bridge
+knows it, the service ``meter`` it is fed through). Gateways that name the same site are
+drawn together in one diagram; without it every gateway is drawn on its own.
+
 Both bridges build this from their own data. Anything a bridge can't read is left out
 (``None`` or an empty list) or named in ``unavailable``; nothing is guessed here.
 
@@ -22,6 +26,7 @@ FIELD_TYPES = ("text", "choice")
 ENERGY_KEYS = ("grid_import_kwh", "grid_export_kwh", "solar_kwh", "home_kwh",
                "battery_charge_kwh", "battery_discharge_kwh")
 ALARM_LEVELS = ("warn", "crit")
+AC_TYPES = ("single", "split", "three")
 
 
 def _num(v: Any) -> bool:
@@ -94,6 +99,33 @@ def _check_gateway(g: Any, path: str) -> list[str]:
     for name in g.get("unavailable") or []:
         if name not in OBJECTS:
             errs.append(f"{path}.unavailable: {name!r} is not one of {OBJECTS}")
+    return errs + _check_member(g.get("site"), f"{path}.site")
+
+
+def _check_member(s: Any, path: str) -> list[str]:
+    """The site a gateway belongs to, and the service meter it is fed through."""
+    if s is None:
+        return []
+    if not isinstance(s, dict):
+        return [f"{path}: an object or null"]
+    errs: list[str] = []
+    if not isinstance(s.get("id"), str) or not s.get("id"):
+        errs.append(f"{path}.id: a non-empty string is required")
+    if s.get("name") is not None and not isinstance(s["name"], str):
+        errs.append(f"{path}.name: a string or null")
+    m = s.get("meter")
+    if m is None:
+        return errs
+    if not isinstance(m, dict):
+        return errs + [f"{path}.meter: an object or null"]
+    if not isinstance(m.get("id"), str) or not m.get("id"):
+        errs.append(f"{path}.meter.id: a non-empty string is required")
+    if m.get("name") is not None and not isinstance(m["name"], str):
+        errs.append(f"{path}.meter.name: a string or null")
+    if m.get("ac") is not None and m["ac"] not in AC_TYPES:
+        errs.append(f"{path}.meter.ac: one of {AC_TYPES} or null")
+    if m.get("rated_amps") is not None and not (_num(m["rated_amps"]) and m["rated_amps"] > 0):
+        errs.append(f"{path}.meter.rated_amps: a positive number or null")
     return errs
 
 
