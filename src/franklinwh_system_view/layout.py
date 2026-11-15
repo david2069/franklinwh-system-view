@@ -384,12 +384,14 @@ def _place(spec: dict | None, id_, x, y, w, h, *, frame=True, card=False) -> dic
                  alarms=spec.get("alarms"))
 
 
-def scene(g: dict, orientation: str = "landscape") -> dict:
-    """Nodes and wires for one gateway, laid out for ``orientation``."""
+def scene(g: dict, orientation: str = "landscape", *, circuits: bool = True) -> dict:
+    """Nodes and wires for one gateway, laid out for ``orientation``; without the smart
+    circuits when ``circuits`` is False (the generator stays)."""
     if orientation not in ("landscape", "portrait"):
         raise ValueError(f"orientation: 'landscape' or 'portrait', not {orientation!r}")
     grid, agate, home = _grid(g), _agate(g), _home(g)
-    solars, bats, circs, gen = _solars(g), _batteries(g), _circuits(g), _generator(g)
+    solars, bats, gen = _solars(g), _batteries(g), _generator(g)
+    circs = _circuits(g) if circuits else []
     _energy(g, grid, home, solars, bats)
     _alarms(g, grid, agate, home, solars, bats, circs, gen)
     nodes: list[dict] = []

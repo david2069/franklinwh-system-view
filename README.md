@@ -8,12 +8,14 @@ full-page overlay over a bridge's own dashboard, and can be the page a browser s
   is doing, grid up or down, solar, home use, circuits. Hover for a sentence, click for details.
 - **Fits any screen.** Desktop and tablet get a landscape layout, phones a portrait one.
   Zoom with − / Fit / +, pinch, or Ctrl+wheel; drag to pan when zoomed. It always opens
-  fitted. Zoom, Customise diagram and Start on sit under **Options**, folded on phones and
-  shown on wider screens; the user's choice is remembered.
+  fitted. Zoom, Customise diagram, the extras and Start on sit in the **Options** drop-down,
+  which opens over the diagram and closes on a click outside it or Esc.
 - **Extras, when wanted.** Under **Options** each has its own switch, off until switched on
   and remembered in the browser: **Voltage & frequency** under the grid, **Today's energy**
   (kWh) under each picture, **Power on wires** (the kW on each wire, with an arrow the way it
-  goes) and **Alarms** (a count on the device; its details list them).
+  goes) and **Alarms** (a count on the device; its details list them). **Smart circuits** is
+  the other way round: shown until switched off, and the diagram is laid out again without
+  them.
 - **Colours mean state.** Green normal, grey offline or disabled, amber warning, red critical.
 - **Only what's there is drawn.** A site with no solar shows no solar.
 

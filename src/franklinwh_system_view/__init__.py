@@ -9,7 +9,7 @@ from importlib import resources
 from pathlib import Path
 
 from . import customise
-from .layout import scene, strip
+from .layout import _circuits, scene, strip
 from .schema import SCHEMA_VERSION, validate
 
 __version__ = "0.3.1"
@@ -31,8 +31,18 @@ def build(payload: dict) -> dict:
         raise ValueError("; ".join(errs))
     out = dict(payload)
     out["strip"] = strip(payload)
-    out["gateways"] = [dict(g, scenes={o: scene(g, o) for o in ("landscape", "portrait")})
-                       for g in payload["gateways"]]
+    out["gateways"] = [dict(g, scenes=_scenes(g)) for g in payload["gateways"]]
+    return out
+
+
+def _scenes(g: dict) -> dict:
+    """Both orientations, and each without the smart circuits when there are any (the user
+    can hide them under Options), laid out again so no gap is left."""
+    out = {}
+    for o in ("landscape", "portrait"):
+        out[o] = scene(g, o)
+        if _circuits(g):
+            out[o + "_no_circuits"] = scene(g, o, circuits=False)
     return out
 
 

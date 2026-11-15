@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.2] — 2026-11-16
+
+### Changed
+- **Options is a drop-down** (owner, Direct Connect Bridge #660). Zoom, Customise diagram, the
+  extras and Start on open over the diagram, so it no longer moves; it starts closed and closes
+  on a click outside it or Esc (Esc then closes the overlay). Before, the controls were a row
+  under the toolbar, shown on wide screens and remembered.
+
+### Added
+- **Smart circuits** under Options: shown until switched off, remembered in the browser.
+  `build()` adds `landscape_no_circuits` and `portrait_no_circuits` scenes when a gateway has
+  circuits, laid out again without them; `scene(..., circuits=False)` makes one.
+
 ## [0.3.1] — 2026-11-12
 
 ### Changed

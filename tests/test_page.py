@@ -44,6 +44,12 @@ def _page(browser, base, query="", width=1280, height=800):
     return ctx, page, errors
 
 
+def _options(page):
+    """Open the Options drop-down if it is closed (zoom, Customise, the extras, Start on)."""
+    if page.get_attribute(".fwhsv-opt", "aria-expanded") != "true":
+        page.click(".fwhsv-opt")
+
+
 def test_opens_over_the_dashboard_and_closes_back_to_it(browser, base):
     ctx, page, errors = _page(browser, base)
     page.click("#open")
@@ -76,6 +82,7 @@ def test_zoom_buttons_change_the_view_and_fit_restores_it(browser, base):
     page.click("#open")
     page.wait_for_selector(".fwhsv-obj")
     vb0 = page.get_attribute(".fwhsv-svg", "viewBox")
+    _options(page)
     page.click("button[data-z='in']")
     vb1 = page.get_attribute(".fwhsv-svg", "viewBox")
     assert float(vb1.split()[2]) < float(vb0.split()[2])
@@ -95,10 +102,12 @@ def test_a_phone_gets_the_portrait_layout(browser, base):
 def test_start_on_system_view_is_remembered(browser, base):
     ctx, page, _ = _page(browser, base)
     page.click("#open")
+    _options(page)
     page.check(".fwhsv-start input")
     page.goto(base + "/")
     page.wait_for_selector(".fwhsv-obj")
     assert page.locator(".fwhsv").is_visible()
+    _options(page)
     page.uncheck(".fwhsv-start input")
     page.click(".fwhsv-close")
     page.goto(base + "/")
@@ -176,6 +185,7 @@ def test_customise_saves_and_the_diagram_follows(browser, base):
     ctx, page, errors = _page(browser, base, "?fixture=au_single_phase")
     page.click("#open")
     page.wait_for_selector(".fwhsv-obj[data-id='agate']")
+    _options(page)
     page.click(".fwhsv-cust")
     page.fill(".fwhsv-form input[placeholder='Example home']", "Beach house")
     page.select_option(".fwhsv-form select >> nth=0", "hidden")       # weather
@@ -193,6 +203,7 @@ def test_a_refused_answer_is_shown_in_the_dialog(browser, base):
     ctx, page, _ = _page(browser, base, "?fixture=au_single_phase")
     page.click("#open")
     page.wait_for_selector(".fwhsv-obj")
+    _options(page)
     page.click(".fwhsv-cust")
     page.fill(".fwhsv-form input >> nth=0", "x" * 61)
     page.click(".fwhsv-save")
@@ -226,6 +237,7 @@ def test_a_saved_answer_that_disagrees_with_a_reading_is_flagged_at_once(browser
     ctx, page, _ = _page(browser, base, "?fixture=us_tou_two_apowers_solar")
     page.click("#open")
     page.wait_for_selector(".fwhsv-obj")
+    _options(page)
     page.click(".fwhsv-cust")
     page.select_option(".fwhsv-form select >> nth=1", "L1")          # the aGate reads two legs
     page.click(".fwhsv-save")
@@ -283,32 +295,6 @@ def test_the_overlay_follows_the_hosts_top_bar_when_it_changes_height(browser, b
     ctx.close()
 
 
-def test_a_phone_opens_with_the_view_options_folded_away(browser, base):
-    ctx, page, _ = _page(browser, base, width=390, height=844)
-    page.click("#open")
-    page.wait_for_selector(".fwhsv-obj")
-    assert page.locator("button[data-z='fit']").is_hidden()
-    assert page.locator(".fwhsv-start").is_hidden()
-    page.click(".fwhsv-opt")
-    assert page.locator("button[data-z='fit']").is_visible()
-    assert page.get_attribute(".fwhsv-opt", "aria-expanded") == "true"
-    page.goto(base + "/")                                     # the choice is remembered
-    page.click("#open")
-    page.wait_for_selector(".fwhsv-obj")
-    assert page.locator("button[data-z='fit']").is_visible()
-    ctx.close()
-
-
-def test_a_desktop_opens_with_the_view_options_shown(browser, base):
-    ctx, page, _ = _page(browser, base)
-    page.click("#open")
-    page.wait_for_selector(".fwhsv-obj")
-    assert page.locator("button[data-z='fit']").is_visible()
-    page.click(".fwhsv-opt")
-    assert page.locator("button[data-z='fit']").is_hidden()
-    ctx.close()
-
-
 def test_the_diagram_takes_most_of_a_phone_screen(browser, base):
     ctx, page, _ = _page(browser, base, width=390, height=844)
     page.click("#open")
@@ -334,6 +320,7 @@ def test_reopening_starts_fitted_to_the_screen(browser, base):
     page.click("#open")
     page.wait_for_selector(".fwhsv-obj")
     vb0 = page.get_attribute(".fwhsv-svg", "viewBox")
+    _options(page)
     page.click("button[data-z='in']")
     page.click(".fwhsv-close")
     page.click("#open")
@@ -381,6 +368,7 @@ def test_customise_shows_one_gateway_at_a_time_from_a_picker(browser, base):
       gateway: () => 'gw2', gatewayChips: false})""")
     page.click("#open")
     page.wait_for_selector(".fwhsv-obj")
+    _options(page)
     page.click(".fwhsv-cust")
     pick = page.locator(".fwhsv-form select.fwhsv-cust-gw")
     assert pick.input_value() == "gw2"
@@ -393,4 +381,51 @@ def test_customise_shows_one_gateway_at_a_time_from_a_picker(browser, base):
     page.wait_for_selector(".fwhsv-result.ok")
     assert page.locator(".fwhsv-form select.fwhsv-cust-gw").input_value() == "gw1"   # stays on it
     assert errors == []
+    ctx.close()
+
+
+def test_options_is_a_drop_down(browser, base):
+    """Owner, 2026-11-16 (Direct Connect Bridge #660): Options should be a drop-down, not a
+    row of controls under the toolbar. It starts closed, opens over the diagram without
+    moving it, stays open while its switches are used, and closes on a click outside or Esc."""
+    for width in (1280, 390):
+        ctx, page, _ = _page(browser, base, width=width, height=844)
+        page.click("#open")
+        page.wait_for_selector(".fwhsv-obj")
+        assert page.locator("button[data-z='fit']").is_hidden()
+        bar0 = page.locator(".fwhsv-bar").bounding_box()["height"]
+        page.click(".fwhsv-opt")
+        assert page.locator("button[data-z='fit']").is_visible()
+        assert page.locator(".fwhsv-bar").bounding_box()["height"] == bar0   # over, not in
+        page.check("[data-show='energy']")
+        assert page.locator("button[data-z='fit']").is_visible()             # still open
+        page.mouse.click(10, 800)                                             # outside
+        assert page.locator("button[data-z='fit']").is_hidden()
+        page.click(".fwhsv-opt")
+        page.keyboard.press("Escape")
+        assert page.locator("button[data-z='fit']").is_hidden()
+        assert page.locator(".fwhsv").is_visible()                            # Esc shut the menu only
+        page.reload()
+        if page.locator(".fwhsv").is_hidden():
+            page.click("#open")
+        page.wait_for_selector(".fwhsv-obj")
+        assert page.locator("button[data-z='fit']").is_hidden()               # always starts closed
+        ctx.close()
+
+
+def test_smart_circuits_can_be_hidden_and_it_is_remembered(browser, base):
+    ctx, page, _ = _page(browser, base, "?fixture=us_backup_no_solar")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='agate']")
+    assert page.locator(".fwhsv-obj[data-id^='sc']").count() >= 1
+    page.click(".fwhsv-opt")
+    assert page.is_checked("[data-show='circuits']")                          # shown by default
+    page.uncheck("[data-show='circuits']")
+    assert page.locator(".fwhsv-obj[data-id^='sc']").count() == 0
+    page.reload()
+    if page.locator(".fwhsv").is_hidden():
+        page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='agate']")
+    assert page.locator(".fwhsv-obj[data-id^='sc']").count() == 0
+    page.evaluate("localStorage.removeItem('fwh-system-view:show:circuits')")
     ctx.close()
