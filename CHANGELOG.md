@@ -16,7 +16,8 @@
 - The page draws the site's diagram whenever the shown gateway belongs to such a site, with
   that gateway's aGate, name and line in cyan, and the site's name in the strip. Tapping
   another aGate shows that gateway and calls `onGateway`, so the host's picker follows.
-  A gateway alone on its site, or with no `site`, is drawn as before.
+  On a phone the site's diagram is as wide as the screen and scrolls down. A gateway alone
+  on its site, or with no `site`, is drawn as before.
 
 ## [0.3.2] — 2026-11-16
 
