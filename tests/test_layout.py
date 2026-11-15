@@ -125,3 +125,19 @@ def test_a_circuit_in_an_unknown_state_says_unknown_in_its_details():
     g["circuits"][0]["on"] = None
     sc1 = next(n for n in scene(g)["nodes"] if n["id"] == "sc1")
     assert sc1["status"] == "Unknown" and sc1["rows"] == [["State", "Unknown"]]
+
+
+def test_a_scene_can_leave_the_smart_circuits_out():
+    """Owner, 2026-11-16 (Direct Connect Bridge #660): the user can hide the smart circuits.
+    Without them the diagram is laid out again, so no space is left where they were."""
+    from franklinwh_system_view import build, fixture
+    g = fixture("us_backup_no_solar")["gateways"][0]
+    for o in ("landscape", "portrait"):
+        with_c, without = scene(g, o), scene(g, o, circuits=False)
+        circ = lambda i: i == "circuits" or (i.startswith("sc") and i[2:].isdigit())  # noqa: E731
+        assert any(circ(n["id"]) for n in with_c["nodes"])
+        assert not any(circ(n["id"]) for n in without["nodes"])
+        assert not any(circ(w["to"]) for w in without["wires"])
+        assert without["height"] < with_c["height"]
+    scenes = build(fixture("us_backup_no_solar"))["gateways"][0]["scenes"]
+    assert set(scenes) == {"landscape", "portrait", "landscape_no_circuits", "portrait_no_circuits"}

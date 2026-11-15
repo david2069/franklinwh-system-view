@@ -30,7 +30,8 @@ def test_the_wrong_version_is_refused():
 
 def test_build_adds_both_scenes_and_refuses_bad_payloads():
     out = build(fixture("us_backup_no_solar"))
-    assert set(out["gateways"][0]["scenes"]) == {"landscape", "portrait"}
+    assert set(out["gateways"][0]["scenes"]) == {"landscape", "portrait",
+                                              "landscape_no_circuits", "portrait_no_circuits"}
     with pytest.raises(ValueError, match="online"):
         build({"version": 1, "gateways": [{"id": "a", "name": "A"}]})
 

@@ -42,10 +42,11 @@
   const PORTRAIT_BELOW = 640;
   const POLL_MS = 5000;
   const KEY_START = "fwh-system-view:start";
-  const KEY_OPTS = "fwh-system-view:options";   // "1" shown, "0" folded; unset: shown on wide screens
-  const NARROW = 760;
-  // Extras the user switches on under Options, each remembered in this browser (all off by default).
-  const EXTRAS = [["vhz", "Voltage & frequency"], ["energy", "Today's energy"], ["flow", "Power on wires"], ["alarms", "Alarms"]];
+  // Extras the user switches on under Options, each remembered in this browser (all off by
+  // default). Smart circuits is the other way round: shown until switched off.
+  const EXTRAS = [["vhz", "Voltage & frequency"], ["energy", "Today's energy"], ["flow", "Power on wires"], ["alarms", "Alarms"],
+                  ["circuits", "Smart circuits"]];
+  const SHOWN = { circuits: true };
   const KEY_SHOW = "fwh-system-view:show:";
 
   // below / above: CSS selectors for the host's top bar and bottom bar (e.g. a phone tab
@@ -75,7 +76,8 @@
       '<div class="fwhsv-bar">' +
       '<strong class="fwhsv-title">' + esc(opts.title) + '</strong>' +
       '<div class="fwhsv-chips" role="tablist" aria-label="Gateways"></div>' +
-      '<button type="button" class="fwhsv-opt" aria-controls="fwhsv-opts">Options ▾</button>' +
+      '<div class="fwhsv-menu">' +
+      '<button type="button" class="fwhsv-opt" aria-controls="fwhsv-opts" aria-haspopup="true">Options ▾</button>' +
       '<div class="fwhsv-opts" id="fwhsv-opts">' +
       '<div class="fwhsv-zoom" role="group" aria-label="Zoom">' +
       '<button type="button" data-z="out" aria-label="Zoom out">−</button>' +
@@ -84,7 +86,7 @@
       '<button type="button" class="fwhsv-cust" hidden>Customise diagram</button>' +
       '<div class="fwhsv-show" role="group" aria-label="Show">' + EXTRAS.map(([k, l]) =>
         '<label><input type="checkbox" data-show="' + k + '"> ' + esc(l) + '</label>').join("") + '</div>' +
-      '<label class="fwhsv-start"><input type="checkbox"> Start on ' + esc(opts.title) + '</label></div>' +
+      '<label class="fwhsv-start"><input type="checkbox"> Start on ' + esc(opts.title) + '</label></div></div>' +
       '<button type="button" class="fwhsv-close" aria-label="' + esc(opts.backLabel) + '"><span class="fwhsv-closelbl">' + esc(opts.backLabel) + '</span> ✕</button></div>' +
       '<div class="fwhsv-site" hidden></div>' +
       '<div class="fwhsv-body"><div class="fwhsv-stage"><svg class="fwhsv-svg" role="group" aria-label="System diagram"></svg>' +
@@ -107,23 +109,25 @@
     startBox.checked = store.get(KEY_START) === "1";
     root.querySelectorAll("[data-show]").forEach((b) => {
       const k = b.dataset.show;
-      b.checked = store.get(KEY_SHOW + k) === "1";
+      const v = store.get(KEY_SHOW + k);
+      b.checked = SHOWN[k] ? v !== "0" : v === "1";
       root.classList.toggle("show-" + k, b.checked);
       b.addEventListener("change", () => {
-        store.set(KEY_SHOW + k, b.checked ? "1" : null);
+        store.set(KEY_SHOW + k, SHOWN[k] ? (b.checked ? null : "0") : (b.checked ? "1" : null));
         root.classList.toggle("show-" + k, b.checked);
+        if (k === "circuits") { if (sel && /^(sc\d+|circuits)$/.test(sel)) sel = null; draw(); return; }
         if (sel && scn) { const n = scn.nodes.find((x) => x.id === sel); if (n) showPanel(n); }
       });
     });
     startBox.addEventListener("change", () => store.set(KEY_START, startBox.checked ? "1" : null));
-    // Zoom, Customise and Start on fold away behind Options: on a phone they took more room
-    // than the diagram. Folded by default on narrow screens; the user's choice is kept.
-    const saved = store.get(KEY_OPTS);
-    showOptions(saved == null ? window.innerWidth >= NARROW : saved === "1");
-    optBtn.addEventListener("click", () => {
-      const on = optBtn.getAttribute("aria-expanded") !== "true";
-      showOptions(on); store.set(KEY_OPTS, on ? "1" : "0");
-    });
+    // Options is a drop-down (owner, 2026-11-16): zoom, Customise, the extras and Start on
+    // open over the diagram, so it never moves; closed until asked for, and again on a
+    // click outside it or Esc.
+    showOptions(false);
+    optBtn.addEventListener("click", () => showOptions(optBtn.getAttribute("aria-expanded") !== "true"));
+    document.addEventListener("pointerdown", (e) => {
+      if (optBtn.getAttribute("aria-expanded") === "true" && !e.target.closest(".fwhsv-menu")) showOptions(false);
+    }, true);
     root.querySelector(".fwhsv-close").addEventListener("click", () => close());
     root.querySelector(".fwhsv-zoom").addEventListener("click", (e) => {
       const z = e.target.closest("button") && e.target.closest("button").dataset.z;
@@ -131,7 +135,12 @@
       else if (z === "out") setZoom(zoom / 1.25);
       else if (z === "fit") { zoom = 1; panX = panY = 0; applyView(); }
     });
-    root.addEventListener("keydown", (e) => { if (e.key === "Escape") dlg.hidden ? close() : closeCustomise(); });
+    root.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      if (!dlg.hidden) closeCustomise();
+      else if (optBtn.getAttribute("aria-expanded") === "true") { showOptions(false); optBtn.focus(); }
+      else close();
+    });
     wirePointer();
     window.addEventListener("resize", () => { if (!root.hidden) { placeBelow(); draw(); } });
     // The host's bars can change height after opening (a top bar still loading, chips
@@ -144,7 +153,6 @@
   function showOptions(on) {
     optBtn.setAttribute("aria-expanded", on ? "true" : "false");
     bar.classList.toggle("folded", !on);
-    if (!root.hidden && data) draw();     // the stage changed size
   }
 
   function placeBelow() {
@@ -270,7 +278,8 @@
     empty.hidden = true;
     const g = gws[Math.min(gwIdx, gws.length - 1)];
     const portrait = root.querySelector(".fwhsv-stage").clientWidth < PORTRAIT_BELOW;
-    scn = g.scenes[portrait ? "portrait" : "landscape"];
+    const o = portrait ? "portrait" : "landscape";
+    scn = (!root.classList.contains("show-circuits") && g.scenes[o + "_no_circuits"]) || g.scenes[o];
     const wires = scn.wires.map((w) => `<path class="fwhsv-wire ${w.flow}${w.dc ? " dc" : ""}" d="${w.d}"/>`).join("");
     svg.innerHTML = wires + scn.nodes.map(nodeSvg).join("") + scn.wires.map(wireLabel).join("");
     applyView();
