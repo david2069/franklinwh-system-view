@@ -476,3 +476,22 @@ def test_a_phone_gets_the_site_diagram_in_portrait(browser, base):
     page.check("[data-show='circuits']")
     assert errors == []
     ctx.close()
+
+
+@pytest.mark.parametrize("width", [1280, 390])
+def test_battery_rollup_lists_each_apower_in_the_hover_and_the_details(browser, base, width):
+    """#11: one battery picture ×4; the hover and the details have a line per aPower."""
+    ctx, page, errors = _page(browser, base, "?fixture=four_apowers_rollup", width=width)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='battery']")
+    assert page.locator(".fwhsv-obj[data-id='battery']").count() == 1
+    if width > 600:
+        page.hover(".fwhsv-obj[data-id='battery']")
+        tip = page.locator(".fwhsv-tip").inner_text()
+        assert all(f"aP{i}" in tip for i in range(1, 5)) and tip.count("\n") >= 5
+    page.click(".fwhsv-obj[data-id='battery']")
+    panel = page.locator(".fwhsv-panel").inner_text()
+    assert "Batteries ×4" in panel and "SoH 90.5 %" in panel
+    assert all(f"aP{i}" in panel for i in range(1, 5))
+    assert errors == []
+    ctx.close()

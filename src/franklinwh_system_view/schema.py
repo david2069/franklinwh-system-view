@@ -55,6 +55,8 @@ def _check_gateway(g: Any, path: str) -> list[str]:
     if bat is not None:
         if bat.get("soc_pct") is not None and not (_num(bat["soc_pct"]) and 0 <= bat["soc_pct"] <= 100):
             errs.append(f"{path}.battery.soc_pct: 0–100 or null")
+        if not isinstance(bat.get("rollup", False), bool):
+            errs.append(f"{path}.battery.rollup: true or false")
         for i, u in enumerate(bat.get("units") or []):
             if u.get("state", "ok") not in DEVICE_STATES:
                 errs.append(f"{path}.battery.units[{i}].state: one of {DEVICE_STATES}")

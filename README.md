@@ -82,6 +82,8 @@ its site is drawn as before.
 The payload is described in `schema.py`; `fixtures/` holds examples. Signs: grid
 `power_w` > 0 imports, battery `power_w` > 0 discharges. Leave out what you can't read.
 
+**Several aPowers.** `battery.units` draws one card per aPower (up to four, then "+N more"). Set `battery.rollup` to `true` to draw one battery instead: the gateway's `soc_pct` and `power_w` as the aGate reports them, labelled *Batteries ×N* (`count`, else the number of units). Its hover has a line per aPower and its details a row per aPower, from each unit's `name`, `soc_pct`, `soh_pct`, `current_a` and `status` (text, such as the BMS state); what a unit leaves out is not shown. A unit's `state` `warn`, `crit` or `off` colours the one battery.
+
 Optional per gateway: `energy_today` (`grid_import_kwh`, `grid_export_kwh`, `solar_kwh`,
 `home_kwh`, `battery_charge_kwh`, `battery_discharge_kwh`, each kWh or null) and `alarms`, a
 list of `{target, unit?, code?, text, level}` where `target` is one of the objects (`grid`,

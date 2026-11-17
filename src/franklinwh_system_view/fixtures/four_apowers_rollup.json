@@ -1,0 +1,11 @@
+{"version": 1, "site": {"name": "Example home"},
+ "gateways": [{"id": "gw1", "name": "aGate", "kind": "agate", "online": true,
+   "mode": "Time-of-Use", "inverter": "Discharging",
+   "grid": {"state": "connected", "power_w": 70}, "home": {"power_w": 1490},
+   "battery": {"soc_pct": 64, "power_w": 200, "count": 4, "rollup": true, "units": [
+     {"id": "ap1", "name": "aP1", "soc_pct": 63.6, "soh_pct": 95.0, "current_a": 4.5, "status": "Discharging"},
+     {"id": "ap2", "name": "aP2", "soc_pct": 59.6, "soh_pct": 93.5, "current_a": 4.6, "status": "Discharging"},
+     {"id": "ap3", "name": "aP3", "soc_pct": 55.6, "soh_pct": 92.0, "current_a": 4.6, "status": "Discharging"},
+     {"id": "ap4", "name": "aP4", "soc_pct": 51.6, "soh_pct": 90.5, "current_a": 4.6, "status": "Discharging"}]},
+   "solar": [{"id": "pv1", "where": "agate", "power_w": 1220}],
+   "circuits": []}]}
