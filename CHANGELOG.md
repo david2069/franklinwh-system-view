@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1] — 2026-11-17
+
+### Added
+- **Battery roll-up** (owner, Direct Connect Bridge #703; #11). With `battery.rollup: true`
+  and `units`, several aPowers are drawn as one battery: the gateway's charge and power as
+  the aGate reports them, labelled *Batteries ×N*. The hover has a line per aPower (charge,
+  current, state) and the details a row per aPower (with state of health). A unit's warning
+  or fault colours the one battery, and a unit's alarm is listed on it. Without `rollup` the
+  per-unit cards are drawn as before. Hover text and details now keep their line breaks.
+
 ## [0.4.0] — 2026-11-16
 
 ### Added

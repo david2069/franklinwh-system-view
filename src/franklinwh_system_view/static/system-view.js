@@ -319,7 +319,7 @@
     if (sel) { const n = scn.nodes.find((x) => x.id === sel); n ? showPanel(n) : (panel.hidden = true); }
   }
   function showTip(n, x, y) {
-    tip.innerHTML = `<b>${esc(n.label)}</b><br>${esc(n.hover)}`;
+    tip.innerHTML = `<b>${esc(n.label)}</b><br>${esc(n.hover).replace(/\n/g, "<br>")}`;
     tip.hidden = false;
     // Above the pointer, so the tip never covers the label and value under the picture;
     // below it only when there's no room above.
@@ -331,7 +331,7 @@
     tip.hidden = true;
     panel.hidden = false;
     panel.innerHTML = `<button type="button" class="fwhsv-pclose" aria-label="Close details">✕</button>` +
-      `<h3>${esc(n.label)}</h3><p>${esc(n.hover)}</p>` +
+      `<h3>${esc(n.label)}</h3><p>${esc(n.hover).replace(/\n/g, "<br>")}</p>` +
       `<dl>${n.rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` +
       ((n.alarms || []).length && root.classList.contains("show-alarms")
         ? `<h4>Alarms</h4><ul class="fwhsv-alarms">${n.alarms.map((a) =>

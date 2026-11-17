@@ -225,6 +225,8 @@ def _batteries(g: dict) -> list[dict]:
                 "rows": [["Charge", "–" if soc is None else f"{soc:g} %"], ["Now", status if word == "Idle" or state != "ok" else f"{word} {kw(p)}"]],
                 "flow": "off" if state == "off" else _flow(p, reverse=True), "w": p}
 
+    if bat.get("rollup") and units:
+        return [_rollup(bat, units, card)]
     if not units:
         n = bat.get("count")
         base = bat.get("model") or ("Batteries" if (n or 0) > 1 else "Battery")
@@ -242,6 +244,41 @@ def _batteries(g: dict) -> list[dict]:
         more["hover"] = f"{len(rest)} more batteries. Open the Battery tab for each one."
         cards = cards[:MAX_UNITS - 1] + [more]
     return cards
+
+
+def _unit_line(u: dict, *, soh: bool) -> str:
+    """One aPower in the roll-up: what it reports, in the order the Battery tab shows it."""
+    def num(k):
+        v = u.get(k)
+        return v if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+    parts = []
+    if num("soc_pct") is not None:
+        parts.append(f"{round(u['soc_pct']):g} %")
+    if soh and num("soh_pct") is not None:
+        parts.append(f"SoH {u['soh_pct']:g} %")
+    if num("current_a") is not None:
+        parts.append(f"{u['current_a']:g} A")
+    if u.get("status"):
+        parts.append(str(u["status"]))
+    return " · ".join(parts) or "–"
+
+
+def _rollup(bat: dict, units: list[dict], card) -> dict:
+    """One battery picture for several aPowers (#11): the gateway's totals as the aGate
+    reports them, the count, and each aPower in the hover and the details."""
+    n = bat.get("count") or len(units)
+    base = bat.get("model") or "Batteries"
+    c = card("battery", f"{base} ×{n}", bat.get("soc_pct"), bat.get("power_w"))
+    rank = {"ok": 0, "off": 1, "warn": 2, "crit": 3}
+    worst = max((u.get("state", "ok") for u in units), key=lambda s: rank.get(s, 0))
+    if c["state"] == "ok" and worst != "ok":
+        c["state"] = worst
+    names = [u.get("name") or f"Battery {i + 1}" for i, u in enumerate(units)]
+    c["hover"] += "".join(f"\n{nm} {_unit_line(u, soh=False)}" for nm, u in zip(names, units))
+    c["rows"] += [[nm, _unit_line(u, soh=True)] for nm, u in zip(names, units)]
+    if bat.get("model"):
+        c["rows"].append(["Model", bat["model"]])
+    return c
 
 
 def _circuits(g: dict) -> list[dict]:
