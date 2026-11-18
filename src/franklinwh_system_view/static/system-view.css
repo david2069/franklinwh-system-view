@@ -7,8 +7,12 @@
      confirmation) still shows. Hosts can override with --fwhsv-z. */
   position: fixed; inset: 0; z-index: var(--fwhsv-z, 45); display: flex; flex-direction: column;
   background: var(--sv-bg); color: var(--sv-ink); color-scheme: dark;
-  font-family: inherit; padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  --fwhsv-safe-top: env(safe-area-inset-top, 0px); --fwhsv-safe-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: inherit; padding: var(--fwhsv-safe-top) env(safe-area-inset-right, 0px) var(--fwhsv-safe-bottom) env(safe-area-inset-left, 0px);
 }
+/* Between a host's bars, those bars keep clear of the notch and the home bar. */
+.fwhsv.fwhsv-below{ --fwhsv-safe-top: 0px; }
+.fwhsv.fwhsv-above{ --fwhsv-safe-bottom: 0px; }
 /* The host's theme wins: data-theme on <html>; with none set, the system preference. */
 html[data-theme="light"] .fwhsv{
   --sv-bg: #f3f5f7; --sv-panel: #ffffff; --sv-tile: #e8f3ec;
@@ -50,7 +54,19 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 .fwhsv-panel dt{ color: var(--sv-muted); }
 .fwhsv-panel dd{ margin: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .fwhsv-pclose{ position: absolute; top: 10px; right: 10px; padding: 2px 8px !important; min-height: 28px !important; }
+/* Solar forecast & actual: a column on the diagram's left; above it on a phone. */
+.fwhsv-solar{ display: none; width: 200px; flex: none; padding: 16px; border-right: 1px solid var(--sv-line); background: var(--sv-panel); font-size: .9rem; }
+.fwhsv.show-solar .fwhsv-solar:not([hidden]){ display: block; }
+.fwhsv-solar h4{ margin: 0 0 8px; font-size: .95rem; }
+.fwhsv-solar dl{ display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; }
+.fwhsv-solar dt{ color: var(--sv-muted); }
+.fwhsv-solar dd{ margin: 0; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fwhsv-sbar{ height: 6px; border-radius: 3px; background: var(--sv-line); margin: 0 0 10px; overflow: hidden; }
+.fwhsv-sbar span{ display: block; height: 100%; background: var(--sv-ok); }
 @media (max-width: 760px){
+  .fwhsv-solar{ width: auto; border-right: 0; border-bottom: 1px solid var(--sv-line); padding: 8px 16px; }
+  .fwhsv-solar dl{ grid-template-columns: repeat(3, auto 1fr); }
+  .fwhsv-solar h4{ display: none; }
   .fwhsv-body{ flex-direction: column; }
   .fwhsv-panel{ width: auto; border-left: 0; border-top: 1px solid var(--sv-line); max-height: 45%; }
 }

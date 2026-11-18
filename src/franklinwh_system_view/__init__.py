@@ -9,10 +9,10 @@ from importlib import resources
 from pathlib import Path
 
 from . import customise
-from .layout import _circuits, scene, site_groups, site_scene, strip
+from .layout import _circuits, scene, site_groups, site_scene, solar_today, strip
 from .schema import SCHEMA_VERSION, validate
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 __all__ = ["SCHEMA_VERSION", "build", "customise", "fixture", "scene", "static_dir", "validate"]
 
 
@@ -32,7 +32,7 @@ def build(payload: dict) -> dict:
         raise ValueError("; ".join(errs))
     out = dict(payload)
     out["strip"] = strip(payload)
-    out["gateways"] = [dict(g, scenes=_scenes(g)) for g in payload["gateways"]]
+    out["gateways"] = [dict(g, scenes=_scenes(g), solar_today=solar_today(g)) for g in payload["gateways"]]
     groups = site_groups(payload)
     if groups:      # a site with two or more gateways: one diagram for all of them
         by = {g["id"]: g for g in payload["gateways"]}
