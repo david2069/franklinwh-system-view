@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0] — 2026-11-19
+
+### Added
+- **Solar forecast & actual** under **Options** (owner, Direct Connect Bridge). Off until
+  switched on and remembered in the browser. A box on the diagram's left (above it on a
+  phone) shows today's forecast, the actual so far, what is still to come and a bar of
+  actual against forecast. It comes from a new optional per-gateway `solar_forecast`
+  (`forecast_kwh`, `actual_kwh`, `remaining_kwh`), the bridge's own forecast. A bridge that
+  sends none shows no box.
+
+### Fixed
+- **iPhone in Home Assistant: a blank band under the host's top bar.** The overlay padded its
+  top by the notch inset, which a frame reports too, though it sat below the host's bar. Between a
+  host's bars (`below` / `above`), it now leaves those insets to the bars.
+- **Fit didn't fit a site's diagram on a phone.** It opens as wide as the screen and scrolls
+  down; **Fit**, or − from there, now shows it whole, and + goes back to full width. Before,
+  − stopped at the scrolled size and Fit did nothing.
+
 ## [0.4.1] — 2026-11-17
 
 ### Added

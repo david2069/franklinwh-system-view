@@ -495,3 +495,70 @@ def test_battery_rollup_lists_each_apower_in_the_hover_and_the_details(browser, 
     assert all(f"aP{i}" in panel for i in range(1, 5))
     assert errors == []
     ctx.close()
+
+
+def test_inside_the_hosts_bars_the_overlay_adds_no_notch_padding(browser, base):
+    """iPhone, in Home Assistant: a frame reports the phone's notch inset too, so the
+    overlay under the host's top bar left a blank band as tall as the notch (owner,
+    2026-11-19). The host's bars already sit clear of it."""
+    ctx, page, _ = _page(browser, base, width=390, height=844)
+    page.add_style_tag(content=".fwhsv{ --fwhsv-safe-top: 47px; --fwhsv-safe-bottom: 34px; }")   # a notch
+    page.evaluate("FWHSystemView.close(); FWHSystemView.mount({endpoint: '/api/system'})")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    pad = "getComputedStyle(document.querySelector('.fwhsv'))"
+    assert page.evaluate(pad + ".paddingTop") == "47px"          # whole screen: clear of the notch
+    page.evaluate("FWHSystemView.close()")
+    page.evaluate("""() => { const h = document.querySelector('header');
+      h.style.cssText += ';position:fixed;top:0;left:0;right:0;height:56px;z-index:50;background:#333'; }""")
+    page.evaluate("FWHSystemView.mount({endpoint: '/api/system', below: 'header'})")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    assert page.evaluate(pad + ".paddingTop") == "0px"
+    assert page.evaluate("document.querySelector('.fwhsv-bar').getBoundingClientRect().top") == 56
+    ctx.close()
+
+
+def test_fit_shows_a_tall_site_diagram_whole_and_minus_gets_there(browser, base):
+    """A site's diagram on a phone opens as wide as the screen and scrolls; Fit (and −) shrink
+    it to show all of it (owner, 2026-11-19: "Fit does not work")."""
+    q = "?fixture=three_gateway_site"
+    ctx, page, errors = _page(browser, base, q, width=390, height=844)
+    page.evaluate("FWHSystemView.mount({endpoint: '/api/system%s', gatewayChips: false})" % q)
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj[data-id='gw1/agate']")
+    stage = lambda: page.locator(".fwhsv-stage").bounding_box()      # noqa: E731
+    svg = lambda: page.locator(".fwhsv-svg").bounding_box()          # noqa: E731
+    assert svg()["height"] > stage()["height"]                       # opens scrolled, as before
+    _options(page)
+    page.click("[data-z='fit']")
+    assert svg()["height"] <= stage()["height"] and page.evaluate(
+        "document.querySelector('.fwhsv-stage').scrollHeight <= document.querySelector('.fwhsv-stage').clientHeight")
+    page.click("[data-z='in']")                                      # + goes back to full width
+    assert svg()["height"] > stage()["height"]
+    page.click("[data-z='out']")                                     # and − to the whole diagram
+    assert svg()["height"] <= stage()["height"]
+    assert errors == []
+    ctx.close()
+
+
+def test_solar_forecast_and_actual_is_an_option_on_the_left(browser, base):
+    ctx, page, errors = _page(browser, base, "?fixture=us_tou_two_apowers_solar")
+    page.evaluate("FWHSystemView.close(); FWHSystemView.mount({endpoint: '/api/system?fixture=us_tou_two_apowers_solar'})")
+    page.click("#open")
+    page.wait_for_selector(".fwhsv-obj")
+    box = page.locator(".fwhsv-solar")
+    assert not box.is_visible()                                      # off until switched on
+    _options(page)
+    labels = page.locator(".fwhsv-show label").all_inner_texts()
+    assert [l.strip() for l in labels][:5] == ["Voltage & frequency", "Today's energy", "Power on wires",
+                                                "Alarms", "Smart circuits"]          # existing ones kept
+    assert "Solar forecast & actual" in [l.strip() for l in labels]
+    page.check("[data-show='solar']")
+    assert box.is_visible() and "Forecast" in box.inner_text() and "Actual so far" in box.inner_text()
+    assert box.bounding_box()["x"] < page.locator(".fwhsv-stage").bounding_box()["x"]   # on the left
+    page.goto(base + "/?fixture=us_tou_two_apowers_solar")
+    page.evaluate("FWHSystemView.open()"); page.wait_for_selector(".fwhsv-obj")
+    assert page.locator(".fwhsv-solar").is_visible()                 # remembered
+    assert errors == []
+    ctx.close()

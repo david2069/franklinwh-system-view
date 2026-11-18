@@ -364,6 +364,21 @@ def strip(payload: dict) -> dict:
 
 # ── extras: today's energy and alarms, on the objects they are about ──────────────
 
+def solar_today(g: dict) -> dict | None:
+    """Solar forecast & actual, for the box on the diagram's left: today's forecast, what the
+    panels made so far and what the forecast says is still to come, as the bridge sent them
+    (its own forecast). None when it sent none."""
+    sf = g.get("solar_forecast") or {}
+    rows = [[label, f"{_kwh(sf[k])} kWh"] for k, label in (
+        ("forecast_kwh", "Forecast"), ("actual_kwh", "Actual so far"), ("remaining_kwh", "Still to come"))
+        if sf.get(k) is not None]
+    if not rows:
+        return None
+    f, a = sf.get("forecast_kwh"), sf.get("actual_kwh")
+    pct = round(100 * a / f) if f and a is not None else None
+    return {"title": "Solar today", "rows": rows, "pct": pct}
+
+
 def _kwh(v: Any) -> str:
     return f"{v:.1f}"
 

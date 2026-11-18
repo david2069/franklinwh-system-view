@@ -26,6 +26,7 @@ FIELD_TYPES = ("text", "choice")
 ENERGY_KEYS = ("grid_import_kwh", "grid_export_kwh", "solar_kwh", "home_kwh",
                "battery_charge_kwh", "battery_discharge_kwh")
 ALARM_LEVELS = ("warn", "crit")
+SOLAR_FORECAST_KEYS = ("forecast_kwh", "actual_kwh", "remaining_kwh")
 AC_TYPES = ("single", "split", "three")
 
 
@@ -82,6 +83,16 @@ def _check_gateway(g: Any, path: str) -> list[str]:
                     errs.append(f"{path}.energy_today.{k}: not one of {ENERGY_KEYS}")
                 elif v is not None and not _num(v):
                     errs.append(f"{path}.energy_today.{k}: a number or null")
+    sf = g.get("solar_forecast")
+    if sf is not None:
+        if not isinstance(sf, dict):
+            errs.append(f"{path}.solar_forecast: an object or null")
+        else:
+            for k, v in sf.items():
+                if k not in SOLAR_FORECAST_KEYS:
+                    errs.append(f"{path}.solar_forecast.{k}: not one of {SOLAR_FORECAST_KEYS}")
+                elif v is not None and not _num(v):
+                    errs.append(f"{path}.solar_forecast.{k}: a number or null")
     al = g.get("alarms")
     if al is not None and not isinstance(al, list):
         errs.append(f"{path}.alarms: a list or null")

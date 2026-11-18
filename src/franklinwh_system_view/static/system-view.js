@@ -48,7 +48,7 @@
   // Extras the user switches on under Options, each remembered in this browser (all off by
   // default). Smart circuits is the other way round: shown until switched off.
   const EXTRAS = [["vhz", "Voltage & frequency"], ["energy", "Today's energy"], ["flow", "Power on wires"], ["alarms", "Alarms"],
-                  ["circuits", "Smart circuits"]];
+                  ["circuits", "Smart circuits"], ["solar", "Solar forecast & actual"]];
   const SHOWN = { circuits: true };
   const KEY_SHOW = "fwh-system-view:show:";
 
@@ -61,6 +61,9 @@
   let custGw = null; // the gateway the Customise dialog shows
   let want = null;   // a gateway id to show once it is in the data
   let zoom = 1, panX = 0, panY = 0, scn = null;
+  // A site's diagram on a phone opens as wide as the screen and scrolls (tall); Fit, or −
+  // from there, shows it whole instead (owner, 2026-11-19).
+  let tall = false, whole = false;
 
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const store = {
@@ -92,7 +95,7 @@
       '<label class="fwhsv-start"><input type="checkbox"> Start on ' + esc(opts.title) + '</label></div></div>' +
       '<button type="button" class="fwhsv-close" aria-label="' + esc(opts.backLabel) + '"><span class="fwhsv-closelbl">' + esc(opts.backLabel) + '</span> ✕</button></div>' +
       '<div class="fwhsv-site" hidden></div>' +
-      '<div class="fwhsv-body"><div class="fwhsv-stage"><svg class="fwhsv-svg" role="group" aria-label="System diagram"></svg>' +
+      '<div class="fwhsv-body"><aside class="fwhsv-solar" hidden aria-label="Solar forecast and actual"></aside><div class="fwhsv-stage"><svg class="fwhsv-svg" role="group" aria-label="System diagram"></svg>' +
       '<p class="fwhsv-empty" hidden></p></div>' +
       '<aside class="fwhsv-panel" hidden aria-live="polite"></aside></div>' +
       '<div class="fwhsv-tip" hidden></div>' +
@@ -119,6 +122,7 @@
         store.set(KEY_SHOW + k, SHOWN[k] ? (b.checked ? null : "0") : (b.checked ? "1" : null));
         root.classList.toggle("show-" + k, b.checked);
         if (k === "circuits") { if (sel && /(^|\/)(sc\d+|circuits)$/.test(sel)) sel = null; draw(); return; }
+        if (k === "solar") { if (data) draw(); return; }          // the stage changes width
         if (sel && scn) { const n = scn.nodes.find((x) => x.id === sel); if (n) showPanel(n); }
       });
     });
@@ -134,9 +138,9 @@
     root.querySelector(".fwhsv-close").addEventListener("click", () => close());
     root.querySelector(".fwhsv-zoom").addEventListener("click", (e) => {
       const z = e.target.closest("button") && e.target.closest("button").dataset.z;
-      if (z === "in") setZoom(zoom * 1.25);
-      else if (z === "out") setZoom(zoom / 1.25);
-      else if (z === "fit") { zoom = 1; panX = panY = 0; applyView(); }
+      if (z === "in") { if (tall && whole) { whole = false; sizeSvg(); } else setZoom(zoom * 1.25); }
+      else if (z === "out") { if (tall && !whole && zoom <= 1) { whole = true; sizeSvg(); } else setZoom(zoom / 1.25); }
+      else if (z === "fit") { whole = true; zoom = 1; panX = panY = 0; sizeSvg(); }
     });
     root.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
@@ -165,6 +169,11 @@
     const f = opts.above && document.querySelector(opts.above);
     const fr = f ? f.getBoundingClientRect() : null;      // display:none gives height 0
     root.style.bottom = (fr && fr.height ? Math.max(0, Math.round(window.innerHeight - fr.top)) : 0) + "px";
+    // Between the host's bars, they keep clear of the notch and the home bar, not the
+    // overlay: a frame (Home Assistant on an iPhone) reports the phone's insets too, which
+    // left a blank band under the host's top bar.
+    root.classList.toggle("fwhsv-below", !!el);
+    root.classList.toggle("fwhsv-above", !!(fr && fr.height));
   }
 
   /* ── zoom and pan: the viewBox shrinks around the centre; drag or pinch to move ── */
@@ -291,11 +300,10 @@
     svg.innerHTML = wires + scn.nodes.map((n) => nodeSvg(n, g.id)).join("") + scn.wires.map(wireLabel).join("");
     // A site's rows on a phone: as wide as the screen, scrolled down, rather than shrunk to
     // fit its height (three rows drew every picture a third of its size).
+    drawSolar(g);
     const stage = root.querySelector(".fwhsv-stage"), sw = stage.clientWidth - 16;
-    const tall = grp && portrait && sw * scn.height / scn.width > stage.clientHeight - 16;
-    svg.style.height = tall ? Math.round(sw * scn.height / scn.width) + "px" : "";
-    svg.style.touchAction = tall ? "pan-y" : "";
-    applyView();
+    tall = !!grp && portrait && sw * scn.height / scn.width > stage.clientHeight - 16;
+    sizeSvg();
     svg.querySelectorAll(".fwhsv-obj").forEach((el) => {
       const n = scn.nodes.find((x) => x.id === el.dataset.id);
       const pick = () => {
@@ -338,6 +346,25 @@
             `<li class="${a.level === "crit" ? "crit" : "warn"}">${esc(a.text)}${a.code != null ? ` <small>(${esc(a.code)})</small>` : ""}</li>`).join("")}</ul>`
         : "");
     panel.querySelector(".fwhsv-pclose").addEventListener("click", () => { sel = null; panel.hidden = true; draw(); });
+  }
+
+  function sizeSvg() {
+    const stage = root.querySelector(".fwhsv-stage"), sw = stage.clientWidth - 16;
+    const scroll = tall && !whole;
+    svg.style.height = scroll ? Math.round(sw * scn.height / scn.width) + "px" : "";
+    svg.style.touchAction = scroll ? "pan-y" : "";
+    if (!scroll) stage.scrollTop = 0;
+    applyView();
+  }
+
+  /* ── Solar forecast & actual: a box on the diagram's left, when switched on ── */
+  function drawSolar(g) {
+    const box = root.querySelector(".fwhsv-solar"), t = g && g.solar_today;
+    box.hidden = !t;
+    if (!t) { box.innerHTML = ""; return; }
+    box.innerHTML = `<h4>${esc(t.title)}</h4>` +
+      (t.pct != null ? `<div class="fwhsv-sbar" role="img" aria-label="${t.pct}% of the forecast so far"><span style="width:${Math.min(100, t.pct)}%"></span></div>` : "") +
+      "<dl>" + t.rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("") + "</dl>";
   }
 
   /* ── site strip: name and weather ── */
@@ -447,7 +474,7 @@
     lastFocus = document.activeElement;
     if (opts.gateway != null) want = typeof opts.gateway === "function" ? opts.gateway() : opts.gateway;
     root.hidden = false;
-    zoom = 1; panX = panY = 0; applyView();   // always open fitted to the screen
+    zoom = 1; panX = panY = 0; whole = false; applyView();   // always open fitted to the screen
     placeBelow();
     document.documentElement.classList.add("fwhsv-open");
     if (push !== false && location.hash !== "#system") history.pushState({ fwhsv: 1 }, "", "#system");

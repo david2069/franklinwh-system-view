@@ -8,12 +8,16 @@ full-page overlay over a bridge's own dashboard, and can be the page a browser s
   is doing, grid up or down, solar, home use, circuits. Hover for a sentence, click for details.
 - **Fits any screen.** Desktop and tablet get a landscape layout, phones a portrait one.
   Zoom with − / Fit / +, pinch, or Ctrl+wheel; drag to pan when zoomed. It always opens
-  fitted. Zoom, Customise diagram, the extras and Start on sit in the **Options** drop-down,
+  fitted. A site's diagram on a phone opens as wide as the screen and scrolls down; **Fit**
+  (or − from there) shows all of it, and + goes back to full width. Placed between a host's
+  bars, it leaves the notch and home-bar insets to those bars. Zoom, Customise diagram, the extras and Start on sit in the **Options** drop-down,
   which opens over the diagram and closes on a click outside it or Esc.
 - **Extras, when wanted.** Under **Options** each has its own switch, off until switched on
   and remembered in the browser: **Voltage & frequency** under the grid, **Today's energy**
   (kWh) under each picture, **Power on wires** (the kW on each wire, with an arrow the way it
-  goes) and **Alarms** (a count on the device; its details list them). **Smart circuits** is
+  goes), **Alarms** (a count on the device; its details list them) and **Solar forecast &
+  actual** (today's forecast, the actual so far and what is still to come, in a box on the
+  diagram's left; above it on a phone). **Smart circuits** is
   the other way round: shown until switched off, and the diagram is laid out again without
   them.
 - **Colours mean state.** Green normal, grey offline or disabled, amber warning, red critical.
@@ -88,7 +92,9 @@ Optional per gateway: `energy_today` (`grid_import_kwh`, `grid_export_kwh`, `sol
 `home_kwh`, `battery_charge_kwh`, `battery_discharge_kwh`, each kWh or null) and `alarms`, a
 list of `{target, unit?, code?, text, level}` where `target` is one of the objects (`grid`,
 `agate`, `home`, `solar`, `battery`, `circuits`, `generator`), `unit` the 1-based battery or
-circuit it is about, and `level` `warn` or `crit`. A value that is missing is not drawn.
+circuit it is about, and `level` `warn` or `crit`. Also `solar_forecast`
+(`forecast_kwh`, today's forecast; `actual_kwh`, made so far; `remaining_kwh`, still to come;
+each kWh or null), from the bridge's own forecast. A value that is missing is not drawn.
 
 ## Try it
 
