@@ -562,3 +562,19 @@ def test_solar_forecast_and_actual_is_an_option_on_the_left(browser, base):
     assert page.locator(".fwhsv-solar").is_visible()                 # remembered
     assert errors == []
     ctx.close()
+
+
+def test_on_a_phone_the_solar_figures_sit_side_by_side_without_wrapping(browser, base):
+    q = "?fixture=us_tou_two_apowers_solar"
+    ctx, page, errors = _page(browser, base, q, width=390, height=844)
+    page.evaluate("FWHSystemView.close(); FWHSystemView.mount({endpoint: '/api/system%s'})" % q)
+    page.evaluate("FWHSystemView.open()"); page.wait_for_selector(".fwhsv-obj")
+    _options(page); page.check("[data-show='solar']"); _options(page)
+    dts = page.locator(".fwhsv-solar dt")
+    boxes = [dts.nth(i).bounding_box() for i in range(dts.count())]
+    assert len({round(b["y"]) for b in boxes}) == 1                    # one row of labels
+    assert all(b["height"] < 24 for b in boxes)                        # each on one line
+    dds = page.locator(".fwhsv-solar dd")
+    assert all(dds.nth(i).bounding_box()["y"] > boxes[0]["y"] for i in range(dds.count()))   # values under
+    assert errors == []
+    ctx.close()

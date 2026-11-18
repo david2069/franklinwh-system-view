@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.1] — 2026-11-19
+
+### Fixed
+- **Solar forecast & actual on a phone:** the three figures sit side by side, each label
+  over its value, instead of wrapping mid-label ("Actual so / far").
+
 ## [0.5.0] — 2026-11-19
 
 ### Added

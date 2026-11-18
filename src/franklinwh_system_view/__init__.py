@@ -12,7 +12,7 @@ from . import customise
 from .layout import _circuits, scene, site_groups, site_scene, solar_today, strip
 from .schema import SCHEMA_VERSION, validate
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 __all__ = ["SCHEMA_VERSION", "build", "customise", "fixture", "scene", "static_dir", "validate"]
 
 

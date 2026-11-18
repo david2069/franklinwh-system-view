@@ -65,7 +65,10 @@ html.fwhsv-open, html.fwhsv-open body{ overflow: hidden; }
 .fwhsv-sbar span{ display: block; height: 100%; background: var(--sv-ok); }
 @media (max-width: 760px){
   .fwhsv-solar{ width: auto; border-right: 0; border-bottom: 1px solid var(--sv-line); padding: 8px 16px; }
-  .fwhsv-solar dl{ grid-template-columns: repeat(3, auto 1fr); }
+  /* each figure a column: its label over its value, so nothing wraps mid-label */
+  .fwhsv-solar dl{ grid-template-columns: none; grid-template-rows: auto auto; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0 12px; }
+  .fwhsv-solar dt{ font-size: .75rem; white-space: nowrap; }
+  .fwhsv-solar dd{ text-align: left; }
   .fwhsv-solar h4{ display: none; }
   .fwhsv-body{ flex-direction: column; }
   .fwhsv-panel{ width: auto; border-left: 0; border-top: 1px solid var(--sv-line); max-height: 45%; }
